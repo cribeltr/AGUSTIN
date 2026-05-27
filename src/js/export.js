@@ -28,7 +28,8 @@ const EVENTO_HEADERS = [
 const PENDIENTE_HEADERS = [
   'ID Pendiente','N° Inventario','Equipo','Servicio','Descripción',
   'Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre',
-  'Ejecutor','Estado','Tareas','Seguimientos','Adjuntos (URL)','Actualizado'
+  'Ejecutor','Estado','Tareas','Seguimientos','ID Evento asociado',
+  'Adjuntos (URL)','Actualizado'
 ];
 
 function keyToNInv(key) {
@@ -84,26 +85,27 @@ export function buildEventoRows() {
   const rows = [EVENTO_HEADERS.slice()];
   flat.forEach(({ key, ev }, i) => {
     const eqI = eqInfoFor(key);
+    /* Preferir snapshot del evento (ev.inv, ev.fam…) y caer al lookup actual si falta */
     rows.push([
-      i + 1,                              // ID Evento (correlativo)
-      eqI.nInv,
-      eqI.equipo,
-      eqI.servicio,
-      eqI.fam,
+      i + 1,                                              // ID Evento (correlativo)
+      ev.inv || eqI.nInv,
+      ev.equipo || eqI.equipo,
+      ev.servicio || eqI.servicio,
+      ev.fam || eqI.fam,
       TIPO_LABEL[ev.tipo] || ev.tipo || '',
       ev.fecha || '',
-      ev.creadoEn || '',                  // Fecha registro
+      ev.creadoEn || '',                                  // Fecha registro
       ev.resultado || '',
       ev.ejecutor || '',
       ev.estado || '',
       ev.empresa || '',
-      '',                                  // Técnico (visita): reservado para futuro
+      '',                                                 // Técnico (visita): reservado
       ev.nEnvio || '',
       ev.nCotizacion || '',
       ev.nOC || '',
       ev.folio || '',
       ev.folioGuia || '',
-      ev.observacion || '',
+      ev.observacion || ev.comentario || '',
       fmtArchivos(ev.archivos),
       now,
       (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'
@@ -123,12 +125,12 @@ export function buildPendienteRows() {
   flat.forEach(({ key, p }, i) => {
     const eqI = eqInfoFor(key);
     rows.push([
-      i + 1,                              // ID Pendiente (correlativo)
-      eqI.nInv,
-      eqI.equipo,
-      eqI.servicio,
+      i + 1,                                              // ID Pendiente (correlativo)
+      p.inv || eqI.nInv,
+      p.equipo || eqI.equipo,
+      p.servicio || eqI.servicio,
       p.descripcion || '',
-      p.fecha || '',                      // Fecha creación
+      p.fecha || '',                                      // Fecha creación
       p.fechaCompromiso || '',
       p.proximoRecordatorio || '',
       p.fechaCierre || '',
@@ -136,6 +138,7 @@ export function buildPendienteRows() {
       p.estado || '',
       fmtTareas(p.tareas),
       fmtSegs(p.actualizaciones),
+      p.eventoId || '',                                   // ID Evento asociado (trazabilidad)
       fmtArchivos(p.archivos),
       now
     ]);
@@ -180,10 +183,10 @@ export function exportHistorialXLSX(eq, eventos) {
   sorted.forEach((ev, i) => {
     rows.push([
       i + 1,
-      eq.inv || ('ID-' + eq.id),
-      eq.equipo || '',
-      eq.servicio || '',
-      eq.fam || '',
+      ev.inv || eq.inv || ('ID-' + eq.id),
+      ev.equipo || eq.equipo || '',
+      ev.servicio || eq.servicio || '',
+      ev.fam || eq.fam || '',
       TIPO_LABEL[ev.tipo] || ev.tipo || '',
       ev.fecha || '',
       ev.creadoEn || '',
@@ -197,7 +200,7 @@ export function exportHistorialXLSX(eq, eventos) {
       ev.nOC || '',
       ev.folio || '',
       ev.folioGuia || '',
-      ev.observacion || '',
+      ev.observacion || ev.comentario || '',
       fmtArchivos(ev.archivos),
       new Date().toISOString(),
       (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'

@@ -7,6 +7,7 @@ import { initRouter, registerRoute, navigate, refreshActiveView } from './router
 import { initGas, gas, onGasStatus, getMasterMeta, fetchMaster, uploadMaster, schedulePush } from './data/gas.js';
 import { loadFile, loadFromBytes, reconcileOficial } from './data/excel.js';
 import { exportXLSX } from './export.js';
+import { mountRecChip, toggleRecording, isRecording, tryResumeRecording, startRecording } from './recording.js';
 import { renderHoy } from './views/hoy.js';
 import { renderEquipos } from './views/equipos.js';
 import { renderPendientes } from './views/pendientes.js';
@@ -38,6 +39,18 @@ async function boot() {
   bindHeader();
   bindSidebar();
   initRouter();
+
+  /* Grabador: chip en el header + botón. Si había sesión interrumpida, ofrecer retomar. */
+  const recBtn = document.getElementById('btn-rec');
+  const recHost = document.querySelector('.header-actions');
+  if (recBtn && recHost) mountRecChip(recHost, recBtn);
+  if (tryResumeRecording()) {
+    toast({
+      message: 'Había una grabación en curso interrumpida. ¿Continuar?',
+      kind: 'info', durationMs: 10000,
+      action: { label: 'Continuar grabando', onClick: () => startRecording() }
+    });
+  }
 
   /* Intento de restaurar maestro desde Drive si no hay datos locales */
   if (!state.loaded && gas.url) await tryRestoreMaster();

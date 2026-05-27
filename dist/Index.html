@@ -702,6 +702,43 @@ hr {
   cursor: pointer;
 }
 
+/* ---------- Recorder chip ---------- */
+#btn-rec {
+  position: relative;
+  color: var(--c-text-muted);
+}
+#btn-rec:hover { color: var(--c-text); }
+#btn-rec.is-active {
+  color: var(--c-danger);
+}
+#btn-rec.is-active .lucide {
+  fill: var(--c-danger);
+}
+.rec-chip {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  border-radius: var(--r-pill);
+  font-size: var(--fz-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.rec-chip.is-active { display: inline-flex; }
+.rec-chip-count {
+  background: var(--c-danger);
+  color: #fff;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  min-width: 18px;
+  text-align: center;
+}
+
 
 /* ============================================================
    App layout — shell de 3 zonas (sidebar / header / contenido)
@@ -1046,6 +1083,9 @@ kbd {
         <input type="file" id="import-json-input" accept=".json,application/json" hidden />
         <button class="btn" id="btn-upload" title="Cargar Programacion_MP_2026.xlsm">
           <i data-lucide="upload"></i><span class="nav-label-hidden-sm">Cargar archivo</span>
+        </button>
+        <button class="btn btn-icon btn-ghost" id="btn-rec" aria-pressed="false" title="Grabar sesión (clicks, navegación, formularios)">
+          <i data-lucide="circle"></i>
         </button>
         <div class="menu">
           <button class="btn btn-icon btn-ghost" id="btn-menu" aria-label="Más opciones" aria-haspopup="menu" aria-expanded="false">
@@ -2083,7 +2123,8 @@ const EVENTO_HEADERS = [
 const PENDIENTE_HEADERS = [
   'ID Pendiente','N° Inventario','Equipo','Servicio','Descripción',
   'Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre',
-  'Ejecutor','Estado','Tareas','Seguimientos','Adjuntos (URL)','Actualizado'
+  'Ejecutor','Estado','Tareas','Seguimientos','ID Evento asociado',
+  'Adjuntos (URL)','Actualizado'
 ];
 
 function keyToNInv(key) {
@@ -2139,26 +2180,27 @@ function buildEventoRows() {
   const rows = [EVENTO_HEADERS.slice()];
   flat.forEach(({ key, ev }, i) => {
     const eqI = eqInfoFor(key);
+    /* Preferir snapshot del evento (ev.inv, ev.fam…) y caer al lookup actual si falta */
     rows.push([
-      i + 1,                              // ID Evento (correlativo)
-      eqI.nInv,
-      eqI.equipo,
-      eqI.servicio,
-      eqI.fam,
+      i + 1,                                              // ID Evento (correlativo)
+      ev.inv || eqI.nInv,
+      ev.equipo || eqI.equipo,
+      ev.servicio || eqI.servicio,
+      ev.fam || eqI.fam,
       TIPO_LABEL[ev.tipo] || ev.tipo || '',
       ev.fecha || '',
-      ev.creadoEn || '',                  // Fecha registro
+      ev.creadoEn || '',                                  // Fecha registro
       ev.resultado || '',
       ev.ejecutor || '',
       ev.estado || '',
       ev.empresa || '',
-      '',                                  // Técnico (visita): reservado para futuro
+      '',                                                 // Técnico (visita): reservado
       ev.nEnvio || '',
       ev.nCotizacion || '',
       ev.nOC || '',
       ev.folio || '',
       ev.folioGuia || '',
-      ev.observacion || '',
+      ev.observacion || ev.comentario || '',
       fmtArchivos(ev.archivos),
       now,
       (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'
@@ -2178,12 +2220,12 @@ function buildPendienteRows() {
   flat.forEach(({ key, p }, i) => {
     const eqI = eqInfoFor(key);
     rows.push([
-      i + 1,                              // ID Pendiente (correlativo)
-      eqI.nInv,
-      eqI.equipo,
-      eqI.servicio,
+      i + 1,                                              // ID Pendiente (correlativo)
+      p.inv || eqI.nInv,
+      p.equipo || eqI.equipo,
+      p.servicio || eqI.servicio,
       p.descripcion || '',
-      p.fecha || '',                      // Fecha creación
+      p.fecha || '',                                      // Fecha creación
       p.fechaCompromiso || '',
       p.proximoRecordatorio || '',
       p.fechaCierre || '',
@@ -2191,6 +2233,7 @@ function buildPendienteRows() {
       p.estado || '',
       fmtTareas(p.tareas),
       fmtSegs(p.actualizaciones),
+      p.eventoId || '',                                   // ID Evento asociado (trazabilidad)
       fmtArchivos(p.archivos),
       now
     ]);
@@ -2235,10 +2278,10 @@ function exportHistorialXLSX(eq, eventos) {
   sorted.forEach((ev, i) => {
     rows.push([
       i + 1,
-      eq.inv || ('ID-' + eq.id),
-      eq.equipo || '',
-      eq.servicio || '',
-      eq.fam || '',
+      ev.inv || eq.inv || ('ID-' + eq.id),
+      ev.equipo || eq.equipo || '',
+      ev.servicio || eq.servicio || '',
+      ev.fam || eq.fam || '',
       TIPO_LABEL[ev.tipo] || ev.tipo || '',
       ev.fecha || '',
       ev.creadoEn || '',
@@ -2252,7 +2295,7 @@ function exportHistorialXLSX(eq, eventos) {
       ev.nOC || '',
       ev.folio || '',
       ev.folioGuia || '',
-      ev.observacion || '',
+      ev.observacion || ev.comentario || '',
       fmtArchivos(ev.archivos),
       new Date().toISOString(),
       (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'
@@ -3444,6 +3487,264 @@ function render() {
 }
 
 __mp__.modules['js/forms/gas-settings.js'] = { openGasSettings };
+})();
+
+/* ===== js/recording.js ===== */
+(function(){
+const toast = __mp__.modules['js/ui.js'].toast;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+/* Grabador de sesión.
+   Captura: cambios de ruta/vista, clicks, submits de formulario, cambios de input,
+   teclas accionables (Esc, Enter, Ctrl+S, Ctrl+F), aperturas/cierres de modal,
+   toasts emitidos, errores en consola.
+   Persistencia: en memoria mientras graba; al parar, descarga JSON.
+   Estado: indicador visible (dot rojo pulsando + contador) en el header.
+*/
+
+
+
+
+const STORAGE_KEY = 'mp_app_rec_v1';
+
+const recState = {
+  active: false,
+  startedAt: null,
+  events: [],
+  view: null,
+  listeners: [],
+  metaPrev: null
+};
+
+/* Devuelve la sección visible/actual */
+function currentView() {
+  const h = (location.hash || '#hoy').slice(1);
+  return h.split('?')[0] || 'hoy';
+}
+
+/* Resumen de un elemento clicable (sin volcar HTML entero) */
+function describe(el) {
+  if (!el) return null;
+  const out = { tag: el.tagName?.toLowerCase() || '' };
+  if (el.id) out.id = el.id;
+  if (el.name) out.name = el.name;
+  if (el.dataset && Object.keys(el.dataset).length) out.data = { ...el.dataset };
+  const role = el.getAttribute && el.getAttribute('role');
+  if (role) out.role = role;
+  const aria = el.getAttribute && el.getAttribute('aria-label');
+  if (aria) out.ariaLabel = aria;
+  /* Texto truncado: el textContent del botón es lo que el usuario lee */
+  const txt = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (txt && txt.length <= 80) out.text = txt;
+  else if (txt) out.text = txt.slice(0, 77) + '…';
+  /* Breadcrumb de ancestros con id o data-route */
+  const path = [];
+  let cur = el.parentElement;
+  while (cur && path.length < 6) {
+    const sig = cur.id ? '#' + cur.id : (cur.dataset?.route ? '[route=' + cur.dataset.route + ']' : (cur.tagName?.toLowerCase() || ''));
+    if (sig) path.push(sig);
+    cur = cur.parentElement;
+  }
+  if (path.length) out.path = path.reverse().join(' › ');
+  return out;
+}
+
+function push(kind, payload) {
+  if (!recState.active) return;
+  recState.events.push({
+    t: Date.now() - recState.startedAt,
+    view: currentView(),
+    kind,
+    ...payload
+  });
+  updateChip();
+  /* Persiste a localStorage cada 5 eventos para no perder ante un reload accidental */
+  if (recState.events.length % 5 === 0) flush();
+}
+
+function flush() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      active: recState.active,
+      startedAt: recState.startedAt,
+      events: recState.events.slice(-2000)   // mantén las últimas 2000 (cubre sesiones largas sin reventar storage)
+    }));
+  } catch(_){ /* storage lleno: silencioso */ }
+}
+
+/* ---------- Event handlers ---------- */
+function onClick(e) {
+  const t = e.target.closest('button, a, [data-route], [data-tab], [data-edit-ev], [data-edit-pe], [data-pend-from-ev], [data-marker], .nav-item, .tab, .list-item, .equipo-row, .equipo-card');
+  if (!t) return;
+  push('click', { target: describe(t), button: e.button, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey });
+}
+
+function onChange(e) {
+  const t = e.target;
+  if (!t || !t.tagName) return;
+  if (t.type === 'file' || t.type === 'password') return; /* nunca capturar files o passwords */
+  const tag = t.tagName.toLowerCase();
+  if (!['input', 'select', 'textarea'].includes(tag)) return;
+  const desc = describe(t);
+  /* Valor truncado, sólo si no es campo sensible aparente */
+  const looksSensitive = /pass|token|secret|key|email/i.test((t.id || '') + ' ' + (t.name || ''));
+  const value = looksSensitive ? '[oculto]' : String(t.value || '').slice(0, 120);
+  push('change', { target: desc, value, kind: t.type || tag });
+}
+
+function onSubmit(e) {
+  const f = e.target;
+  if (!f || f.tagName?.toLowerCase() !== 'form') return;
+  push('submit', { target: describe(f) });
+}
+
+function onKey(e) {
+  /* Sólo teclas accionables */
+  const interesting = e.key === 'Escape' || e.key === 'Enter' ||
+                      (e.ctrlKey && (e.key === 's' || e.key === 'k' || e.key === 'f')) ||
+                      (e.metaKey && (e.key === 's' || e.key === 'k' || e.key === 'f'));
+  if (!interesting) return;
+  push('key', { key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey, alt: e.altKey });
+}
+
+function onHashChange() {
+  const v = currentView();
+  push('navigate', { to: v, hash: location.hash });
+  recState.view = v;
+}
+
+/* Captura errores de runtime mientras grabamos */
+function onError(e) {
+  push('error', { message: e.message, source: e.filename, line: e.lineno });
+}
+
+/* ---------- Public API ---------- */
+function isRecording() { return recState.active; }
+
+function startRecording() {
+  if (recState.active) return;
+  recState.active = true;
+  recState.startedAt = Date.now();
+  recState.events = [];
+  recState.view = currentView();
+  push('start', { url: location.href, userAgent: navigator.userAgent, viewport: { w: innerWidth, h: innerHeight } });
+  /* Bind listeners en bubble phase */
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('change', onChange, true);
+  document.addEventListener('submit', onSubmit, true);
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('hashchange', onHashChange);
+  window.addEventListener('error', onError);
+  recState.listeners = [
+    ['click', onClick, true], ['change', onChange, true], ['submit', onSubmit, true], ['keydown', onKey, true],
+    ['hashchange', onHashChange, false], ['error', onError, false]
+  ];
+  flush();
+  updateChip();
+  toast({ message: '🔴 Grabando sesión — todos tus clicks y navegación quedan en el log.', kind: 'info', durationMs: 5000 });
+}
+
+function stopRecording() {
+  if (!recState.active) return null;
+  push('stop', {});
+  recState.active = false;
+  /* Unbind */
+  document.removeEventListener('click', onClick, true);
+  document.removeEventListener('change', onChange, true);
+  document.removeEventListener('submit', onSubmit, true);
+  document.removeEventListener('keydown', onKey, true);
+  window.removeEventListener('hashchange', onHashChange);
+  window.removeEventListener('error', onError);
+  recState.listeners = [];
+
+  const payload = {
+    version: 1,
+    recordedAt: new Date(recState.startedAt).toISOString(),
+    durationMs: Date.now() - recState.startedAt,
+    eventsCount: recState.events.length,
+    events: recState.events
+  };
+  /* Descarga JSON */
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mp_session_${todayISO()}_${new Date().getTime()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  /* Limpieza */
+  localStorage.removeItem(STORAGE_KEY);
+  updateChip();
+  toast({
+    message: `Sesión guardada: ${payload.eventsCount} eventos en ${Math.round(payload.durationMs/1000)} s.`,
+    kind: 'ok', durationMs: 6000
+  });
+  return payload;
+}
+
+function toggleRecording() {
+  if (recState.active) stopRecording();
+  else startRecording();
+}
+
+/* ---------- Chip indicador en el header ---------- */
+function mountRecChip(hostEl, buttonEl) {
+  if (!hostEl) return;
+  if (!hostEl.querySelector('.rec-chip')) {
+    const chip = document.createElement('span');
+    chip.className = 'rec-chip';
+    chip.innerHTML = `<span class="dot dot-danger dot-pulse"></span><span class="rec-chip-label">REC</span><span class="rec-chip-count">0</span>`;
+    hostEl.appendChild(chip);
+  }
+  if (buttonEl && !buttonEl.dataset.recBound) {
+    buttonEl.dataset.recBound = '1';
+    buttonEl.addEventListener('click', toggleRecording);
+  }
+  updateChip();
+}
+
+function updateChip() {
+  const chip = document.querySelector('.rec-chip');
+  if (!chip) return;
+  if (recState.active) {
+    chip.classList.add('is-active');
+    const cnt = chip.querySelector('.rec-chip-count');
+    if (cnt) cnt.textContent = String(recState.events.length);
+  } else {
+    chip.classList.remove('is-active');
+  }
+  /* Actualizar el botón */
+  const btn = document.getElementById('btn-rec');
+  if (btn) {
+    btn.title = recState.active ? 'Detener grabación y descargar JSON' : 'Grabar sesión (clicks, navegación, formularios)';
+    btn.setAttribute('aria-pressed', recState.active ? 'true' : 'false');
+    btn.classList.toggle('is-active', recState.active);
+  }
+}
+
+/* Recupera grabación interrumpida (si se cargó la página con el flag activo) */
+function tryResumeRecording() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved.active) { localStorage.removeItem(STORAGE_KEY); return false; }
+    /* Restaurar y seguir grabando */
+    recState.startedAt = saved.startedAt || Date.now();
+    recState.events = saved.events || [];
+    /* No re-arrancamos automáticamente — preguntamos al usuario */
+    return true;
+  } catch (_) {
+    localStorage.removeItem(STORAGE_KEY);
+    return false;
+  }
+}
+
+/* Para depuración rápida desde consola */
+if (typeof window !== 'undefined') {
+  window.__mpRec = { start: startRecording, stop: stopRecording, state: recState };
+}
+
+__mp__.modules['js/recording.js'] = { isRecording, startRecording, stopRecording, toggleRecording, mountRecChip, tryResumeRecording };
 })();
 
 /* ===== js/views/hoy.js ===== */
@@ -4902,6 +5203,11 @@ const loadFile = __mp__.modules['js/data/excel.js'].loadFile;
 const loadFromBytes = __mp__.modules['js/data/excel.js'].loadFromBytes;
 const reconcileOficial = __mp__.modules['js/data/excel.js'].reconcileOficial;
 const exportXLSX = __mp__.modules['js/export.js'].exportXLSX;
+const mountRecChip = __mp__.modules['js/recording.js'].mountRecChip;
+const toggleRecording = __mp__.modules['js/recording.js'].toggleRecording;
+const isRecording = __mp__.modules['js/recording.js'].isRecording;
+const tryResumeRecording = __mp__.modules['js/recording.js'].tryResumeRecording;
+const startRecording = __mp__.modules['js/recording.js'].startRecording;
 const renderHoy = __mp__.modules['js/views/hoy.js'].renderHoy;
 const renderEquipos = __mp__.modules['js/views/equipos.js'].renderEquipos;
 const renderPendientes = __mp__.modules['js/views/pendientes.js'].renderPendientes;
@@ -4910,6 +5216,7 @@ const renderAgenda = __mp__.modules['js/views/agenda.js'].renderAgenda;
 const renderHistorial = __mp__.modules['js/views/historial.js'].renderHistorial;
 const openGasSettings = __mp__.modules['js/forms/gas-settings.js'].openGasSettings;
 /* Entry point — bootstrap del app */
+
 
 
 
@@ -4949,6 +5256,18 @@ async function boot() {
   bindHeader();
   bindSidebar();
   initRouter();
+
+  /* Grabador: chip en el header + botón. Si había sesión interrumpida, ofrecer retomar. */
+  const recBtn = document.getElementById('btn-rec');
+  const recHost = document.querySelector('.header-actions');
+  if (recBtn && recHost) mountRecChip(recHost, recBtn);
+  if (tryResumeRecording()) {
+    toast({
+      message: 'Había una grabación en curso interrumpida. ¿Continuar?',
+      kind: 'info', durationMs: 10000,
+      action: { label: 'Continuar grabando', onClick: () => startRecording() }
+    });
+  }
 
   /* Intento de restaurar maestro desde Drive si no hay datos locales */
   if (!state.loaded && gas.url) await tryRestoreMaster();

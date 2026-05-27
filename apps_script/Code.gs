@@ -98,7 +98,7 @@ const SHEET_META         = 'Meta';
 
 const HEADERS = {
   [SHEET_EVENTOS]:        ['ID Evento','N° Inventario','Equipo','Servicio','Familia','Tipo de evento','Fecha','Fecha registro','Resultado','Ejecutor','Estado del equipo','Empresa','Técnico (visita)','N° Envío','N° Cotización','N° OC','Folio','Folio guía','Observación','Adjuntos (URL)','Actualizado','Oficial'],
-  [SHEET_PENDIENTES]:     ['ID Pendiente','N° Inventario','Equipo','Servicio','Descripción','Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre','Ejecutor','Estado','Tareas','Seguimientos','Adjuntos (URL)','Actualizado'],
+  [SHEET_PENDIENTES]:     ['ID Pendiente','N° Inventario','Equipo','Servicio','Descripción','Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre','Ejecutor','Estado','Tareas','Seguimientos','ID Evento asociado','Adjuntos (URL)','Actualizado'],
   [SHEET_AGENDA_SERV]:    ['servicio','cargo','nombre','email','anexo','celular'],
   [SHEET_AGENDA_OTROS]:   ['servicio','id','rol','nombre','email','anexo','celular'],
   [SHEET_AGENDA_CR]:      ['id','nombre','jefe_nombre','jefe_email','jefe_anexo','jefe_celular','servicios'],
@@ -190,7 +190,7 @@ function _doSetup_(ss) {
     sh.setFrozenRows(1);
   });
   setMeta_('setupAt', new Date().toISOString());
-  setMeta_('version', '3.12');
+  setMeta_('version', '3.13');
 }
 
 /**
@@ -629,7 +629,9 @@ function replaceAll_(payload) {
         i + 1,                                       /* ID Pendiente (numérico correlativo) */
         nInv, eqInfo.equipo||'', eqInfo.servicio||'',
         p.descripcion||'', p.fecha||'', p.fechaCompromiso||'', p.proximoRecordatorio||'', p.fechaCierre||'',
-        p.ejecutor||'', p.estado||'', tareasTxt, segsTxt, '', now
+        p.ejecutor||'', p.estado||'', tareasTxt, segsTxt,
+        p.eventoId || '',                            /* ID Evento asociado (trazabilidad) */
+        '', now
       ]);
       if (adjuntos.length){
         formulas.push({ rowIdx: rows.length - 1, archivos: adjuntos });
@@ -637,8 +639,8 @@ function replaceAll_(payload) {
     });
     if (rows.length){
       sh.getRange(2, 1, rows.length, HEADERS[SHEET_PENDIENTES].length).setValues(rows);
-      /* Adjuntos columna 14 (1-based) — RichTextValue */
-      formulas.forEach(f => setAdjuntosCell_(sh, 2 + f.rowIdx, 14, f.archivos));
+      /* Adjuntos columna 15 (1-based) tras agregar 'ID Evento asociado' — RichTextValue */
+      formulas.forEach(f => setAdjuntosCell_(sh, 2 + f.rowIdx, 15, f.archivos));
     }
   }
 

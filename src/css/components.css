@@ -483,3 +483,40 @@
   accent-color: var(--c-accent);
   cursor: pointer;
 }
+
+/* ---------- Recorder chip ---------- */
+#btn-rec {
+  position: relative;
+  color: var(--c-text-muted);
+}
+#btn-rec:hover { color: var(--c-text); }
+#btn-rec.is-active {
+  color: var(--c-danger);
+}
+#btn-rec.is-active .lucide {
+  fill: var(--c-danger);
+}
+.rec-chip {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  border-radius: var(--r-pill);
+  font-size: var(--fz-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.rec-chip.is-active { display: inline-flex; }
+.rec-chip-count {
+  background: var(--c-danger);
+  color: #fff;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  min-width: 18px;
+  text-align: center;
+}

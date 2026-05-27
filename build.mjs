@@ -54,9 +54,9 @@ function wrapBundle(modules) {
   /* Sustituye imports/exports por accesos a __mp__.modules['<rel>']. */
   const transform = m => {
     let s = m.src;
-    /* exports nombrados: export function/const/let/var X */
+    /* exports nombrados: export [async] function/class/const/let/var X */
     const named = [];
-    s = s.replace(/export\s+(function|class|const|let|var)\s+([a-zA-Z_$][\w$]*)/g, (_, kw, name) => { named.push(name); return `${kw} ${name}`; });
+    s = s.replace(/export\s+(async\s+function|function\s*\*|function|class|const|let|var)\s+([a-zA-Z_$][\w$]*)/g, (_, kw, name) => { named.push(name); return `${kw} ${name}`; });
     /* export { a, b as c, ... } */
     s = s.replace(/export\s*\{([^}]+)\}\s*;?/g, (_, body) => {
       body.split(',').map(x => x.trim()).filter(Boolean).forEach(spec => {

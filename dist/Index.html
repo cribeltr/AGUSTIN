@@ -1736,7 +1736,7 @@ function parseWorkbook(wb) {
 }
 
 /* Lee archivo (File) y lo carga al state */
-export async function loadFile(file) {
+async function loadFile(file) {
   if (!window.XLSX) throw new Error('SheetJS no cargado');
   const buf = await file.arrayBuffer();
   const wb = window.XLSX.read(buf, { type: 'array', cellDates: false });
@@ -1753,7 +1753,7 @@ export async function loadFile(file) {
 }
 
 /* Carga desde bytes (usado al restaurar maestro desde Drive) */
-export async function loadFromBytes(bytes, name = 'Maestro') {
+async function loadFromBytes(bytes, name = 'Maestro') {
   if (!window.XLSX) throw new Error('SheetJS no cargado');
   const wb = window.XLSX.read(bytes, { type: 'array', cellDates: false });
   const parsed = parseWorkbook(wb);
@@ -1838,7 +1838,7 @@ function diffDaysSimple(a, b) {
   return Math.round((db - da) / 86400000);
 }
 
-__mp__.modules['js/data/excel.js'] = { parseWorkbook, reconcileOficial, getEquipoEstadoExtended };
+__mp__.modules['js/data/excel.js'] = { parseWorkbook, loadFile, loadFromBytes, reconcileOficial, getEquipoEstadoExtended };
 })();
 
 /* ===== js/data/gas.js ===== */
@@ -1910,7 +1910,7 @@ async function gasRequest(body) {
   return data;
 }
 
-export async function pingGas(url) {
+async function pingGas(url) {
   const prev = gas.url;
   gas.url = url || gas.url;
   try {
@@ -1942,7 +1942,7 @@ function buildEquiposLookup() {
 }
 
 /* Push completo de eventos/pendientes/agenda/syncMarked al backend */
-export async function pushAll() {
+async function pushAll() {
   if (!gas.url) return null;
   setStatus('syncing');
   try {
@@ -1973,7 +1973,7 @@ function schedulePush() {
 }
 
 /* Pull: descarga estado completo del backend (replace local) */
-export async function pullAll() {
+async function pullAll() {
   if (!gas.url) return null;
   setStatus('syncing');
   try {
@@ -1996,7 +1996,7 @@ export async function pullAll() {
 }
 
 /* Adjuntos */
-export async function uploadFile(inv, prefix, file) {
+async function uploadFile(inv, prefix, file) {
   if (!gas.url) throw new Error('Backend requerido para adjuntos');
   const bytes = new Uint8Array(await file.arrayBuffer());
   const base64 = bytesToBase64(bytes);
@@ -2006,13 +2006,13 @@ export async function uploadFile(inv, prefix, file) {
   });
   return r.result;
 }
-export async function deleteFile(id) {
+async function deleteFile(id) {
   if (!gas.url) throw new Error('Backend requerido');
   return (await gasRequest({ action: 'deleteFile', payload: { id } })).result;
 }
 
 /* Maestro */
-export async function uploadMaster(file) {
+async function uploadMaster(file) {
   if (!gas.url) throw new Error('Backend requerido');
   const bytes = new Uint8Array(await file.arrayBuffer());
   const base64 = bytesToBase64(bytes);
@@ -2023,7 +2023,7 @@ export async function uploadMaster(file) {
   return r.result;
 }
 
-export async function getMasterMeta() {
+async function getMasterMeta() {
   if (!gas.url) return null;
   try {
     const res = await fetch(gas.url + '?action=getMasterMeta');
@@ -2036,7 +2036,7 @@ export async function getMasterMeta() {
   return null;
 }
 
-export async function fetchMaster() {
+async function fetchMaster() {
   if (!gas.url) return null;
   const res = await fetch(gas.url + '?action=getMaster');
   const data = await res.json();
@@ -2046,7 +2046,7 @@ export async function fetchMaster() {
   return { name: obj.name, mime: obj.mime, bytes: base64ToBytes(obj.base64), uploadedAt: obj.uploadedAt };
 }
 
-__mp__.modules['js/data/gas.js'] = { gas, onGasStatus, initGas, configureGas, pushAllDebounced, schedulePush };
+__mp__.modules['js/data/gas.js'] = { gas, onGasStatus, initGas, configureGas, pingGas, pushAll, pushAllDebounced, schedulePush, pullAll, uploadFile, deleteFile, uploadMaster, getMasterMeta, fetchMaster };
 })();
 
 /* ===== js/export.js ===== */

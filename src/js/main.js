@@ -1,11 +1,11 @@
 /* Entry point — bootstrap del app */
 
-import { state, loadDataCache, loadPersisted, loadSyncMarked, loadPrefs, savePrefs, runMigrationV4, resetAllData } from './state.js';
+import { state, loadDataCache, loadPersisted, loadSyncMarked, loadPrefs, savePrefs, runMigrationV4, resetAllData, savePersisted, saveSyncMarked, ensureAgendaShape } from './state.js';
 import { toast, showLoading, hideLoading, confirmDialog, openModal } from './ui.js';
 import { renderIcons, fmtDate, fmtRelative, todayISO } from './utils.js';
 import { initRouter, registerRoute, navigate, refreshActiveView } from './router.js';
 import { initGas, gas, onGasStatus, getMasterMeta, fetchMaster, uploadMaster, schedulePush } from './data/gas.js';
-import { loadFile, loadFromBytes } from './data/excel.js';
+import { loadFile, loadFromBytes, reconcileOficial } from './data/excel.js';
 import { exportXLSX } from './export.js';
 import { renderHoy } from './views/hoy.js';
 import { renderEquipos } from './views/equipos.js';
@@ -83,6 +83,8 @@ function bindHeader() {
     catch (err) { toast({ message: 'No se pudo exportar: ' + err.message, kind: 'danger' }); }
   });
   document.getElementById('menu-export-json')?.addEventListener('click', () => { closeMenu(); exportJSON(); });
+  document.getElementById('menu-import-json')?.addEventListener('click', () => { closeMenu(); document.getElementById('import-json-input')?.click(); });
+  document.getElementById('import-json-input')?.addEventListener('change', onImportJsonChosen);
   document.getElementById('menu-reset')?.addEventListener('click', async () => {
     closeMenu();
     const ok = await confirmDialog({ title: 'Eliminar TODOS los datos', message: 'Esto borra eventos, pendientes, agenda, archivo cargado y configuración. No se puede deshacer.', danger: true, confirmLabel: 'Eliminar todo' });
@@ -182,6 +184,82 @@ function openUserPref() {
     savePrefs();
     toast({ message: 'Guardado.', kind: 'ok' });
     modal.close();
+  });
+}
+
+async function onImportJsonChosen(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { toast({ message: 'El archivo no es un JSON válido.', kind: 'danger' }); return; }
+    if (!data || (!data.eventos && !data.pendientes && !data.agenda)) {
+      toast({ message: 'El archivo no contiene datos de Gestión MP.', kind: 'danger' });
+      return;
+    }
+    /* Resumen previo a confirmar — para que el usuario sepa qué entra */
+    const evCount = countItems(data.eventos);
+    const peCount = countItems(data.pendientes);
+    const srvCount = data.agenda?.servicios ? Object.keys(data.agenda.servicios).length : 0;
+    const empCount = data.agenda?.empresas?.length || 0;
+    const currentEv = countItems(state.eventos);
+    const currentPe = countItems(state.pendientes);
+    const ok = await confirmDialog({
+      title: 'Importar datos JSON',
+      message: `Vas a reemplazar tus datos locales con:\n• ${evCount} eventos (actual: ${currentEv})\n• ${peCount} pendientes (actual: ${currentPe})\n• ${srvCount} servicios, ${empCount} empresas en agenda\n\nEsta acción no se puede deshacer. ¿Continuar?`,
+      confirmLabel: 'Importar y reemplazar', danger: true
+    });
+    if (!ok) return;
+    /* Normalización legacy: observacion ← comentario, asegurar shape */
+    normalizeImport(data);
+    state.eventos = data.eventos || {};
+    state.pendientes = data.pendientes || {};
+    state.agenda = data.agenda || { servicios:{}, centros:[], directorio:[], empresas:[] };
+    ensureAgendaShape();
+    if (Array.isArray(data.syncMarked)) {
+      state.syncMarked = new Set(data.syncMarked);
+      saveSyncMarked();
+    }
+    savePersisted();
+    toast({ message: `Datos importados: ${evCount} eventos, ${peCount} pendientes.`, kind: 'ok', durationMs: 6000 });
+    /* Si hay equipos cargados (Excel ya leído), correr reconciliación para
+       detectar eventos que ya aparecen en el maestro actual y promoverlos. */
+    if (state.loaded) {
+      const r = reconcileOficial();
+      if (r.promoted) toast({ message: `${r.promoted} eventos promovidos a oficiales tras importar.`, kind: 'ok' });
+    }
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    toast({ message: 'Error al importar: ' + err.message, kind: 'danger', durationMs: 8000 });
+  }
+}
+
+function countItems(byKey) {
+  if (!byKey) return 0;
+  return Object.values(byKey).reduce((n, arr) => n + (arr?.length || 0), 0);
+}
+
+function normalizeImport(data) {
+  /* Eventos: legacy "comentario" → "observacion"; defaults defensivos */
+  Object.values(data.eventos || {}).forEach(arr => {
+    (arr || []).forEach(ev => {
+      if (!ev.observacion && ev.comentario) ev.observacion = ev.comentario;
+      if (!ev.archivos) ev.archivos = [];
+      if (!ev.creadoEn && ev.fecha) ev.creadoEn = ev.fecha;
+      /* Eventos legacy sin campo `oficial` quedan como oficiales (true por omisión) */
+    });
+  });
+  /* Pendientes: defaults */
+  Object.values(data.pendientes || {}).forEach(arr => {
+    (arr || []).forEach(p => {
+      if (!p.tareas) p.tareas = [];
+      if (!p.actualizaciones) p.actualizaciones = [];
+      if (!p.archivos) p.archivos = [];
+      if (!p.estado) p.estado = 'abierto';
+    });
   });
 }
 

@@ -1043,6 +1043,7 @@ kbd {
       </div>
       <div class="header-actions">
         <input type="file" id="file-input" accept=".xlsm,.xlsx,.xls" hidden />
+        <input type="file" id="import-json-input" accept=".json,application/json" hidden />
         <button class="btn" id="btn-upload" title="Cargar Programacion_MP_2026.xlsm">
           <i data-lucide="upload"></i><span class="nav-label-hidden-sm">Cargar archivo</span>
         </button>
@@ -1056,6 +1057,7 @@ kbd {
             <hr/>
             <button id="menu-export-xlsx"><i data-lucide="file-spreadsheet"></i> Exportar Excel</button>
             <button id="menu-export-json"><i data-lucide="download"></i> Exportar JSON</button>
+            <button id="menu-import-json"><i data-lucide="upload"></i> Importar JSON</button>
             <hr/>
             <button id="menu-reset" style="color:var(--c-danger)"><i data-lucide="trash-2"></i> Borrar todos los datos</button>
           </div>
@@ -4873,6 +4875,9 @@ const loadPrefs = __mp__.modules['js/state.js'].loadPrefs;
 const savePrefs = __mp__.modules['js/state.js'].savePrefs;
 const runMigrationV4 = __mp__.modules['js/state.js'].runMigrationV4;
 const resetAllData = __mp__.modules['js/state.js'].resetAllData;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const saveSyncMarked = __mp__.modules['js/state.js'].saveSyncMarked;
+const ensureAgendaShape = __mp__.modules['js/state.js'].ensureAgendaShape;
 const toast = __mp__.modules['js/ui.js'].toast;
 const showLoading = __mp__.modules['js/ui.js'].showLoading;
 const hideLoading = __mp__.modules['js/ui.js'].hideLoading;
@@ -4895,6 +4900,7 @@ const uploadMaster = __mp__.modules['js/data/gas.js'].uploadMaster;
 const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
 const loadFile = __mp__.modules['js/data/excel.js'].loadFile;
 const loadFromBytes = __mp__.modules['js/data/excel.js'].loadFromBytes;
+const reconcileOficial = __mp__.modules['js/data/excel.js'].reconcileOficial;
 const exportXLSX = __mp__.modules['js/export.js'].exportXLSX;
 const renderHoy = __mp__.modules['js/views/hoy.js'].renderHoy;
 const renderEquipos = __mp__.modules['js/views/equipos.js'].renderEquipos;
@@ -4988,6 +4994,8 @@ function bindHeader() {
     catch (err) { toast({ message: 'No se pudo exportar: ' + err.message, kind: 'danger' }); }
   });
   document.getElementById('menu-export-json')?.addEventListener('click', () => { closeMenu(); exportJSON(); });
+  document.getElementById('menu-import-json')?.addEventListener('click', () => { closeMenu(); document.getElementById('import-json-input')?.click(); });
+  document.getElementById('import-json-input')?.addEventListener('change', onImportJsonChosen);
   document.getElementById('menu-reset')?.addEventListener('click', async () => {
     closeMenu();
     const ok = await confirmDialog({ title: 'Eliminar TODOS los datos', message: 'Esto borra eventos, pendientes, agenda, archivo cargado y configuración. No se puede deshacer.', danger: true, confirmLabel: 'Eliminar todo' });
@@ -5087,6 +5095,82 @@ function openUserPref() {
     savePrefs();
     toast({ message: 'Guardado.', kind: 'ok' });
     modal.close();
+  });
+}
+
+async function onImportJsonChosen(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { toast({ message: 'El archivo no es un JSON válido.', kind: 'danger' }); return; }
+    if (!data || (!data.eventos && !data.pendientes && !data.agenda)) {
+      toast({ message: 'El archivo no contiene datos de Gestión MP.', kind: 'danger' });
+      return;
+    }
+    /* Resumen previo a confirmar — para que el usuario sepa qué entra */
+    const evCount = countItems(data.eventos);
+    const peCount = countItems(data.pendientes);
+    const srvCount = data.agenda?.servicios ? Object.keys(data.agenda.servicios).length : 0;
+    const empCount = data.agenda?.empresas?.length || 0;
+    const currentEv = countItems(state.eventos);
+    const currentPe = countItems(state.pendientes);
+    const ok = await confirmDialog({
+      title: 'Importar datos JSON',
+      message: `Vas a reemplazar tus datos locales con:\n• ${evCount} eventos (actual: ${currentEv})\n• ${peCount} pendientes (actual: ${currentPe})\n• ${srvCount} servicios, ${empCount} empresas en agenda\n\nEsta acción no se puede deshacer. ¿Continuar?`,
+      confirmLabel: 'Importar y reemplazar', danger: true
+    });
+    if (!ok) return;
+    /* Normalización legacy: observacion ← comentario, asegurar shape */
+    normalizeImport(data);
+    state.eventos = data.eventos || {};
+    state.pendientes = data.pendientes || {};
+    state.agenda = data.agenda || { servicios:{}, centros:[], directorio:[], empresas:[] };
+    ensureAgendaShape();
+    if (Array.isArray(data.syncMarked)) {
+      state.syncMarked = new Set(data.syncMarked);
+      saveSyncMarked();
+    }
+    savePersisted();
+    toast({ message: `Datos importados: ${evCount} eventos, ${peCount} pendientes.`, kind: 'ok', durationMs: 6000 });
+    /* Si hay equipos cargados (Excel ya leído), correr reconciliación para
+       detectar eventos que ya aparecen en el maestro actual y promoverlos. */
+    if (state.loaded) {
+      const r = reconcileOficial();
+      if (r.promoted) toast({ message: `${r.promoted} eventos promovidos a oficiales tras importar.`, kind: 'ok' });
+    }
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    toast({ message: 'Error al importar: ' + err.message, kind: 'danger', durationMs: 8000 });
+  }
+}
+
+function countItems(byKey) {
+  if (!byKey) return 0;
+  return Object.values(byKey).reduce((n, arr) => n + (arr?.length || 0), 0);
+}
+
+function normalizeImport(data) {
+  /* Eventos: legacy "comentario" → "observacion"; defaults defensivos */
+  Object.values(data.eventos || {}).forEach(arr => {
+    (arr || []).forEach(ev => {
+      if (!ev.observacion && ev.comentario) ev.observacion = ev.comentario;
+      if (!ev.archivos) ev.archivos = [];
+      if (!ev.creadoEn && ev.fecha) ev.creadoEn = ev.fecha;
+      /* Eventos legacy sin campo `oficial` quedan como oficiales (true por omisión) */
+    });
+  });
+  /* Pendientes: defaults */
+  Object.values(data.pendientes || {}).forEach(arr => {
+    (arr || []).forEach(p => {
+      if (!p.tareas) p.tareas = [];
+      if (!p.actualizaciones) p.actualizaciones = [];
+      if (!p.archivos) p.archivos = [];
+      if (!p.estado) p.estado = 'abierto';
+    });
   });
 }
 

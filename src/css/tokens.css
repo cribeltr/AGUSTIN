@@ -1,0 +1,106 @@
+/* ============================================================
+   Design Tokens — "Clínica calma"
+   ============================================================ */
+:root {
+  /* Color — neutrals (papel cálido) */
+  --c-bg:          #FAFAF7;
+  --c-surface:     #FFFFFF;
+  --c-surface-2:   #F3F3EE;
+  --c-surface-3:   #ECECE5;
+  --c-border:      #E6E5DE;
+  --c-border-strong:#C8C7BE;
+  --c-text:        #1B2330;
+  --c-text-muted:  #5C6573;
+  --c-text-faint:  #8A8F99;
+
+  /* Color — accent (único azul-acero) */
+  --c-accent:      #3B6CB7;
+  --c-accent-hover:#2F5896;
+  --c-accent-soft: #E8EFF8;
+  --c-accent-ink:  #1E3F70;
+
+  /* Color — semantic */
+  --c-ok:          #2E7D5B;
+  --c-ok-soft:     #E4F1EA;
+  --c-warn:        #B7791F;
+  --c-warn-soft:   #FAEFD7;
+  --c-danger:      #B23B3B;
+  --c-danger-soft: #F6E3E3;
+  --c-info:        #3B6CB7;
+  --c-info-soft:   #E8EFF8;
+
+  /* Estado equipo (codes) — usados con moderación */
+  --c-est-op:      #2E7D5B;
+  --c-est-noop:    #B23B3B;
+  --c-est-fs:      #B7791F;
+  --c-est-baja:    #6B7280;
+  --c-est-nr:      #8A8F99;
+
+  /* Type */
+  --ff-text: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --ff-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --fz-xs:   11px;
+  --fz-sm:   12.5px;
+  --fz-base: 14px;
+  --fz-md:   15px;
+  --fz-lg:   17px;
+  --fz-xl:   20px;
+  --fz-2xl:  24px;
+  --fz-3xl:  30px;
+
+  --lh-tight: 1.2;
+  --lh-snug:  1.35;
+  --lh-base:  1.5;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+
+  /* Space (escala 4) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10:40px;
+  --s-12:48px;
+  --s-16:64px;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-pill: 999px;
+
+  /* Shadow (hairline, casi imperceptible) */
+  --sh-1: 0 1px 0 rgba(27,35,48,.04), 0 1px 2px rgba(27,35,48,.04);
+  --sh-2: 0 1px 0 rgba(27,35,48,.05), 0 4px 12px rgba(27,35,48,.06);
+  --sh-3: 0 2px 4px rgba(27,35,48,.06), 0 12px 24px rgba(27,35,48,.10);
+  --sh-focus: 0 0 0 3px rgba(59,108,183,.28);
+
+  /* Motion */
+  --mo-fast: 120ms cubic-bezier(.2,.6,.2,1);
+  --mo-base: 200ms cubic-bezier(.2,.6,.2,1);
+  --mo-slow: 320ms cubic-bezier(.2,.6,.2,1);
+
+  /* Layout */
+  --layout-sidebar:   240px;
+  --layout-sidebar-collapsed: 60px;
+  --layout-header:    56px;
+  --layout-content-max: 1320px;
+
+  /* Z */
+  --z-sidebar: 10;
+  --z-header: 20;
+  --z-toast: 80;
+  --z-modal: 90;
+  --z-loading: 100;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Modo oscuro (segunda fase) — placeholder, no activado por defecto */
+}

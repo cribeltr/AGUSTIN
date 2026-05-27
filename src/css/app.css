@@ -1,0 +1,288 @@
+/* ============================================================
+   App layout — shell de 3 zonas (sidebar / header / contenido)
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-columns: var(--layout-sidebar) 1fr;
+  grid-template-rows: var(--layout-header) 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar content";
+  height: 100vh;
+  overflow: hidden;
+}
+.app.is-sidebar-collapsed {
+  grid-template-columns: var(--layout-sidebar-collapsed) 1fr;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-sidebar);
+  overflow: hidden;
+  transition: width var(--mo-base);
+}
+.sidebar-brand {
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+  height: var(--layout-header);
+  flex-shrink: 0;
+}
+.brand-mark {
+  width: 28px; height: 28px;
+  border-radius: var(--r-md);
+  background: var(--c-accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fz-sm);
+  flex-shrink: 0;
+}
+.brand-name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fz-md);
+  line-height: 1.1;
+}
+.brand-name small { display: block; font-weight: var(--fw-regular); font-size: var(--fz-xs); color: var(--c-text-muted); }
+
+.sidebar-nav {
+  padding: var(--s-2);
+  flex: 1;
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-medium);
+  font-size: var(--fz-base);
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+  position: relative;
+  transition: background var(--mo-fast), color var(--mo-fast);
+}
+.nav-item:hover { background: var(--c-surface-2); color: var(--c-text); }
+.nav-item[aria-current="page"] {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-ink);
+}
+.nav-item .lucide { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: var(--c-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  min-width: 18px;
+  text-align: center;
+}
+.nav-item .nav-badge.is-zero { display: none; }
+.nav-item .nav-badge.is-info { background: var(--c-info); }
+.nav-item .nav-badge.is-warn { background: var(--c-warn); }
+
+.sidebar-footer {
+  padding: var(--s-2);
+  border-top: 1px solid var(--c-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.sync-status {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 8px 12px;
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+  border-radius: var(--r-md);
+}
+.sync-status:hover { background: var(--c-surface-2); color: var(--c-text); cursor: pointer; }
+.sync-status .sync-label { flex: 1; }
+
+/* Sidebar collapsed: oculta texto, deja iconos */
+.app.is-sidebar-collapsed .brand-name,
+.app.is-sidebar-collapsed .nav-item span:not(.nav-badge),
+.app.is-sidebar-collapsed .sync-label,
+.app.is-sidebar-collapsed .nav-item .nav-badge { display: none; }
+.app.is-sidebar-collapsed .nav-item { justify-content: center; padding: 8px 0; }
+.app.is-sidebar-collapsed .sync-status { justify-content: center; padding: 8px 0; }
+.app.is-sidebar-collapsed .sidebar-brand { justify-content: center; padding: var(--s-3) 0; }
+
+/* ---------- Header ---------- */
+.header {
+  grid-area: header;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-4);
+  z-index: var(--z-header);
+}
+.header-title {
+  font-size: var(--fz-lg);
+  font-weight: var(--fw-semibold);
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.header-title small { font-weight: var(--fw-regular); color: var(--c-text-muted); font-size: var(--fz-sm); }
+.header-actions { display: flex; gap: var(--s-2); align-items: center; }
+
+.menu {
+  position: relative;
+}
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 220px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2);
+  z-index: 50;
+  padding: var(--s-1);
+  display: flex; flex-direction: column;
+}
+.menu-pop button {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 8px 10px;
+  font-size: var(--fz-sm);
+  color: var(--c-text);
+  border-radius: var(--r-sm);
+  text-align: left;
+  width: 100%;
+}
+.menu-pop button:hover { background: var(--c-surface-2); }
+.menu-pop button .lucide { width: 16px; height: 16px; color: var(--c-text-muted); }
+.menu-pop hr { margin: 4px 2px; }
+
+/* ---------- Content ---------- */
+.content {
+  grid-area: content;
+  overflow-y: auto;
+  padding: var(--s-5);
+  background: var(--c-bg);
+}
+.view { max-width: var(--layout-content-max); margin: 0 auto; }
+.view-header {
+  margin-bottom: var(--s-4);
+  display: flex; flex-wrap: wrap; gap: var(--s-3);
+  align-items: end; justify-content: space-between;
+}
+.view-header h2 { font-size: var(--fz-xl); }
+.view-header p { color: var(--c-text-muted); font-size: var(--fz-sm); margin-top: 2px; }
+
+/* ---------- Grid helpers ---------- */
+.grid {
+  display: grid;
+  gap: var(--s-3);
+}
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ---------- Equipos view ---------- */
+.equipo-row .est {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.equipo-id {
+  font-family: var(--ff-mono);
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+}
+
+/* Equipo: vista de tarjetas para móvil */
+.equipo-card-list { display: none; }
+.equipo-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-3);
+  margin-bottom: var(--s-2);
+  cursor: pointer;
+}
+.equipo-card .ec-title { font-weight: var(--fw-medium); margin-bottom: 2px; }
+.equipo-card .ec-meta { font-size: var(--fz-xs); color: var(--c-text-muted); }
+.equipo-card .ec-foot { display: flex; gap: 6px; margin-top: var(--s-2); flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .equipos-table-wrap { display: none; }
+  .equipo-card-list { display: block; }
+}
+
+/* ---------- Mobile / responsive ---------- */
+@media (max-width: 1024px) {
+  .app { grid-template-columns: var(--layout-sidebar-collapsed) 1fr; }
+  .app .brand-name,
+  .app .sidebar .nav-item span:not(.nav-badge),
+  .app .sidebar .sync-label,
+  .app .sidebar .nav-item .nav-badge { display: none; }
+  .app .nav-item { justify-content: center; padding: 8px 0; }
+  .app .sync-status { justify-content: center; padding: 8px 0; }
+  .app .sidebar-brand { justify-content: center; padding: var(--s-3) 0; }
+  .app.is-mobile-drawer .sidebar { width: var(--layout-sidebar); }
+  .app.is-mobile-drawer .brand-name,
+  .app.is-mobile-drawer .nav-item span,
+  .app.is-mobile-drawer .sync-label { display: inline; }
+  .app.is-mobile-drawer .nav-item { justify-content: flex-start; padding: 8px 12px; }
+  .app.is-mobile-drawer .sync-status { justify-content: flex-start; padding: 8px 12px; }
+}
+@media (max-width: 768px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-areas: "header" "content";
+  }
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    height: 100vh;
+    width: var(--layout-sidebar);
+    transform: translateX(-100%);
+    transition: transform var(--mo-base);
+    box-shadow: var(--sh-3);
+  }
+  .app.is-mobile-drawer .sidebar { transform: none; }
+  .app.is-mobile-drawer::before {
+    content: ""; position: fixed; inset: 0;
+    background: rgba(15,23,32,.4); z-index: 5;
+  }
+  .content { padding: var(--s-3); }
+}
+
+/* ---------- KBD shortcut ---------- */
+kbd {
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 4px;
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  box-shadow: 0 1px 0 var(--c-border-strong);
+}
+
+/* ---------- Print discreto ---------- */
+@media print {
+  .sidebar, .header { display: none; }
+  .app { display: block; height: auto; }
+  .content { padding: 0; }
+}

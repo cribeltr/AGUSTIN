@@ -1,0 +1,4751 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <meta name="description" content="Gestión de mantención preventiva 2026 — HHHA" />
+  <title>Gestión MP 2026 · HHHA</title>
+
+  <!-- Fonts (intencionales, no Inter/Roboto por defecto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <!-- App CSS -->
+  
+  
+  
+  
+
+  <!-- Libs vía CDN -->
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- App entry -->
+  
+<style>
+/* ============================================================
+   Design Tokens — "Clínica calma"
+   ============================================================ */
+:root {
+  /* Color — neutrals (papel cálido) */
+  --c-bg:          #FAFAF7;
+  --c-surface:     #FFFFFF;
+  --c-surface-2:   #F3F3EE;
+  --c-surface-3:   #ECECE5;
+  --c-border:      #E6E5DE;
+  --c-border-strong:#C8C7BE;
+  --c-text:        #1B2330;
+  --c-text-muted:  #5C6573;
+  --c-text-faint:  #8A8F99;
+
+  /* Color — accent (único azul-acero) */
+  --c-accent:      #3B6CB7;
+  --c-accent-hover:#2F5896;
+  --c-accent-soft: #E8EFF8;
+  --c-accent-ink:  #1E3F70;
+
+  /* Color — semantic */
+  --c-ok:          #2E7D5B;
+  --c-ok-soft:     #E4F1EA;
+  --c-warn:        #B7791F;
+  --c-warn-soft:   #FAEFD7;
+  --c-danger:      #B23B3B;
+  --c-danger-soft: #F6E3E3;
+  --c-info:        #3B6CB7;
+  --c-info-soft:   #E8EFF8;
+
+  /* Estado equipo (codes) — usados con moderación */
+  --c-est-op:      #2E7D5B;
+  --c-est-noop:    #B23B3B;
+  --c-est-fs:      #B7791F;
+  --c-est-baja:    #6B7280;
+  --c-est-nr:      #8A8F99;
+
+  /* Type */
+  --ff-text: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --ff-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --fz-xs:   11px;
+  --fz-sm:   12.5px;
+  --fz-base: 14px;
+  --fz-md:   15px;
+  --fz-lg:   17px;
+  --fz-xl:   20px;
+  --fz-2xl:  24px;
+  --fz-3xl:  30px;
+
+  --lh-tight: 1.2;
+  --lh-snug:  1.35;
+  --lh-base:  1.5;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+
+  /* Space (escala 4) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10:40px;
+  --s-12:48px;
+  --s-16:64px;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-pill: 999px;
+
+  /* Shadow (hairline, casi imperceptible) */
+  --sh-1: 0 1px 0 rgba(27,35,48,.04), 0 1px 2px rgba(27,35,48,.04);
+  --sh-2: 0 1px 0 rgba(27,35,48,.05), 0 4px 12px rgba(27,35,48,.06);
+  --sh-3: 0 2px 4px rgba(27,35,48,.06), 0 12px 24px rgba(27,35,48,.10);
+  --sh-focus: 0 0 0 3px rgba(59,108,183,.28);
+
+  /* Motion */
+  --mo-fast: 120ms cubic-bezier(.2,.6,.2,1);
+  --mo-base: 200ms cubic-bezier(.2,.6,.2,1);
+  --mo-slow: 320ms cubic-bezier(.2,.6,.2,1);
+
+  /* Layout */
+  --layout-sidebar:   240px;
+  --layout-sidebar-collapsed: 60px;
+  --layout-header:    56px;
+  --layout-content-max: 1320px;
+
+  /* Z */
+  --z-sidebar: 10;
+  --z-header: 20;
+  --z-toast: 80;
+  --z-modal: 90;
+  --z-loading: 100;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Modo oscuro (segunda fase) — placeholder, no activado por defecto */
+}
+
+
+/* Reset minimalista + tipografía base */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--ff-text);
+  font-size: var(--fz-base);
+  line-height: var(--lh-base);
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
+}
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+}
+h1 { font-size: var(--fz-2xl); }
+h2 { font-size: var(--fz-xl); }
+h3 { font-size: var(--fz-lg); }
+h4 { font-size: var(--fz-md); }
+p  { margin: 0; }
+a {
+  color: var(--c-accent);
+  text-decoration: none;
+  transition: color var(--mo-fast);
+}
+a:hover { color: var(--c-accent-hover); text-decoration: underline; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input, select, textarea { font: inherit; color: inherit; }
+img, svg { max-width: 100%; display: block; }
+code, kbd, samp {
+  font-family: var(--ff-mono);
+  font-size: 0.9em;
+  background: var(--c-surface-2);
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--c-border);
+  margin: var(--s-4) 0;
+}
+::selection { background: var(--c-accent-soft); color: var(--c-accent-ink); }
+
+/* Foco visible accesible (WCAG 2.4.7) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--sh-focus);
+  border-radius: var(--r-md);
+}
+
+/* Scrollbar discreto */
+* { scrollbar-width: thin; scrollbar-color: var(--c-border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--c-border-strong); border-radius: var(--r-pill); border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Utilidades mínimas */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.row { display: flex; gap: var(--s-3); align-items: center; }
+.row-between { display: flex; gap: var(--s-3); align-items: center; justify-content: space-between; }
+.col { display: flex; flex-direction: column; gap: var(--s-3); }
+.grow { flex: 1; }
+.muted { color: var(--c-text-muted); }
+.faint { color: var(--c-text-faint); }
+.mono { font-family: var(--ff-mono); font-size: 0.92em; }
+.nowrap { white-space: nowrap; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hidden { display: none !important; }
+.mt-1 { margin-top: var(--s-1); } .mt-2 { margin-top: var(--s-2); } .mt-3 { margin-top: var(--s-3); } .mt-4 { margin-top: var(--s-4); } .mt-6 { margin-top: var(--s-6); }
+.mb-1 { margin-bottom: var(--s-1); } .mb-2 { margin-bottom: var(--s-2); } .mb-3 { margin-bottom: var(--s-3); } .mb-4 { margin-bottom: var(--s-4); } .mb-6 { margin-bottom: var(--s-6); }
+.text-xs { font-size: var(--fz-xs); }
+.text-sm { font-size: var(--fz-sm); }
+.text-md { font-size: var(--fz-md); }
+.text-lg { font-size: var(--fz-lg); }
+.semibold { font-weight: var(--fw-semibold); }
+.medium { font-weight: var(--fw-medium); }
+
+
+/* ============================================================
+   Components — primitives
+   ============================================================ */
+
+/* ---------- Button ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 8px 14px;
+  font-size: var(--fz-base);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text);
+  transition: background var(--mo-fast), border-color var(--mo-fast), color var(--mo-fast), transform var(--mo-fast);
+  min-height: 36px;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:hover { background: var(--c-surface-2); border-color: var(--c-text-muted); }
+.btn:active { transform: translateY(1px); }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: 0.55; cursor: not-allowed; pointer-events: none;
+}
+.btn .lucide { width: 16px; height: 16px; stroke-width: 1.5; }
+
+.btn-primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--c-accent-hover); border-color: var(--c-accent-hover); }
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--c-text-muted);
+}
+.btn-ghost:hover { background: var(--c-surface-2); color: var(--c-text); border-color: transparent; }
+
+.btn-danger {
+  background: var(--c-surface);
+  border-color: var(--c-border-strong);
+  color: var(--c-danger);
+}
+.btn-danger:hover { background: var(--c-danger-soft); border-color: var(--c-danger); color: var(--c-danger); }
+
+.btn-sm { padding: 4px 10px; font-size: var(--fz-sm); min-height: 28px; border-radius: var(--r-sm); }
+.btn-sm .lucide { width: 14px; height: 14px; }
+
+.btn-icon {
+  padding: 0;
+  width: 36px;
+  height: 36px;
+}
+.btn-icon.btn-sm { width: 28px; height: 28px; }
+
+.btn-block { width: 100%; }
+
+/* ---------- Field (input/select/textarea) ---------- */
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+.field-label {
+  font-size: var(--fz-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-text-muted);
+}
+.field-hint {
+  font-size: var(--fz-xs);
+  color: var(--c-text-faint);
+}
+.field-error {
+  font-size: var(--fz-xs);
+  color: var(--c-danger);
+  display: flex; align-items: center; gap: 4px;
+}
+.input, .select, .textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: var(--fz-base);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  transition: border-color var(--mo-fast), box-shadow var(--mo-fast);
+  min-height: 36px;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: var(--sh-focus);
+}
+.input::placeholder, .textarea::placeholder { color: var(--c-text-faint); }
+.input[type="date"] { padding: 7px 12px; }
+.input.is-invalid, .select.is-invalid, .textarea.is-invalid {
+  border-color: var(--c-danger);
+}
+.textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: var(--lh-base);
+}
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6573' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+@media (max-width: 640px) {
+  .input, .select, .textarea { font-size: 16px; } /* evita zoom iOS */
+}
+
+.search-input {
+  position: relative;
+}
+.search-input input {
+  padding-left: 36px;
+}
+.search-input .lucide {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--c-text-faint);
+  stroke-width: 1.5;
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.card-title { font-size: var(--fz-md); font-weight: var(--fw-semibold); }
+.card-subtle { color: var(--c-text-muted); font-size: var(--fz-sm); }
+
+/* ---------- Badge ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--fz-xs);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  border: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+.badge-accent  { background: var(--c-accent-soft); color: var(--c-accent-ink); border-color: transparent; }
+.badge-ok      { background: var(--c-ok-soft); color: var(--c-ok); border-color: transparent; }
+.badge-warn    { background: var(--c-warn-soft); color: var(--c-warn); border-color: transparent; }
+.badge-danger  { background: var(--c-danger-soft); color: var(--c-danger); border-color: transparent; }
+.badge-mono    { font-family: var(--ff-mono); font-size: var(--fz-xs); }
+
+.dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--c-text-faint);
+}
+.dot-ok   { background: var(--c-ok); }
+.dot-warn { background: var(--c-warn); }
+.dot-danger { background: var(--c-danger); }
+.dot-info { background: var(--c-info); }
+.dot-pulse { animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: var(--s-1);
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 10px 14px;
+  font-size: var(--fz-base);
+  color: var(--c-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--mo-fast), border-color var(--mo-fast);
+  white-space: nowrap;
+  font-weight: var(--fw-medium);
+}
+.tab:hover { color: var(--c-text); }
+.tab[aria-selected="true"] {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+/* ---------- Table ---------- */
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fz-base);
+}
+.table th, .table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--c-border);
+}
+.table th {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+  background: var(--c-surface-2);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.table tr:last-child td { border-bottom: 0; }
+.table tbody tr { transition: background var(--mo-fast); }
+.table tbody tr:hover { background: var(--c-surface-2); }
+.table tbody tr.is-selectable { cursor: pointer; }
+.table th.sortable { cursor: pointer; user-select: none; }
+.table th.sortable:hover { color: var(--c-text); }
+.table th.sortable[data-sorted="asc"]::after  { content: "↑"; margin-left: 4px; color: var(--c-accent); }
+.table th.sortable[data-sorted="desc"]::after { content: "↓"; margin-left: 4px; color: var(--c-accent); }
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 32, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--s-4);
+  z-index: var(--z-modal);
+  animation: backdrop-in var(--mo-base);
+  overflow-y: auto;
+}
+@keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--c-surface);
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-3);
+  width: 100%;
+  max-width: 720px;
+  margin: var(--s-8) auto;
+  animation: modal-in var(--mo-slow);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--s-12));
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+.modal-lg { max-width: 1080px; }
+.modal-sm { max-width: 480px; }
+.modal-header {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-shrink: 0;
+}
+.modal-title { font-size: var(--fz-lg); font-weight: var(--fw-semibold); }
+.modal-body {
+  padding: var(--s-5);
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  background: var(--c-surface-2);
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+  flex-shrink: 0;
+}
+
+/* ---------- Toast ---------- */
+.toast-stack {
+  position: fixed;
+  bottom: var(--s-5);
+  right: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  z-index: var(--z-toast);
+  max-width: 360px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  box-shadow: var(--sh-2);
+  pointer-events: auto;
+  animation: toast-in var(--mo-base);
+}
+.toast-ok      { border-left: 3px solid var(--c-ok); }
+.toast-warn    { border-left: 3px solid var(--c-warn); }
+.toast-danger  { border-left: 3px solid var(--c-danger); }
+.toast-info    { border-left: 3px solid var(--c-info); }
+.toast-body { flex: 1; font-size: var(--fz-sm); line-height: var(--lh-snug); }
+.toast .lucide { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+.toast-action {
+  font-size: var(--fz-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-accent);
+}
+.toast-action:hover { text-decoration: underline; }
+.toast-close {
+  color: var(--c-text-faint);
+  padding: 0;
+  width: 18px; height: 18px;
+}
+.toast-close:hover { color: var(--c-text); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Loading overlay ---------- */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(250, 250, 247, 0.75);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  z-index: var(--z-loading);
+}
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid var(--c-border-strong);
+  border-top-color: var(--c-accent);
+  border-radius: 50%;
+  animation: spin 720ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Empty state ---------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-10) var(--s-4);
+  color: var(--c-text-muted);
+  text-align: center;
+}
+.empty .lucide { width: 36px; height: 36px; color: var(--c-text-faint); stroke-width: 1.25; }
+.empty-title { font-size: var(--fz-md); font-weight: var(--fw-semibold); color: var(--c-text); }
+.empty-text { font-size: var(--fz-sm); max-width: 380px; }
+
+/* ---------- Section / collapsible ---------- */
+.section {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.section + .section { margin-top: var(--s-3); }
+.section-header {
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  background: var(--c-surface-2);
+  border-bottom: 1px solid var(--c-border);
+  cursor: pointer;
+}
+.section-header h3 { font-size: var(--fz-md); }
+.section-body { padding: var(--s-4); }
+.section[data-collapsed="true"] .section-body { display: none; }
+.section[data-collapsed="true"] .section-header { border-bottom: 0; }
+
+/* ---------- KPI Card ---------- */
+.kpi {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.kpi-label { font-size: var(--fz-sm); color: var(--c-text-muted); font-weight: var(--fw-medium); }
+.kpi-value { font-size: var(--fz-3xl); font-weight: var(--fw-semibold); letter-spacing: -0.02em; line-height: 1.05; }
+.kpi-note  { font-size: var(--fz-xs); color: var(--c-text-faint); }
+.kpi-danger .kpi-value { color: var(--c-danger); }
+.kpi-warn .kpi-value   { color: var(--c-warn); }
+.kpi-ok .kpi-value     { color: var(--c-ok); }
+
+/* ---------- Pendiente / Evento card list ---------- */
+.list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-border);
+  transition: background var(--mo-fast);
+}
+.list-item:hover { background: var(--c-surface-2); }
+.list-item:last-child { border-bottom: 0; }
+.list-item .item-main { flex: 1; min-width: 0; }
+.list-item .item-title { font-weight: var(--fw-medium); }
+.list-item .item-meta { font-size: var(--fz-xs); color: var(--c-text-muted); margin-top: 2px; }
+.list-item .item-actions { display: flex; gap: var(--s-1); flex-shrink: 0; }
+
+/* ---------- File drop ---------- */
+.drop-zone {
+  border: 1.5px dashed var(--c-border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--s-5) var(--s-4);
+  text-align: center;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: border-color var(--mo-fast), background var(--mo-fast);
+  background: var(--c-surface);
+}
+.drop-zone:hover, .drop-zone.is-drag {
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+  color: var(--c-accent-ink);
+}
+.drop-zone .lucide { width: 22px; height: 22px; margin-bottom: var(--s-1); }
+
+/* ---------- Filter bar ---------- */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--s-3);
+}
+.filter-bar > .search-input { flex: 1; min-width: 200px; }
+.filter-bar .select { width: auto; min-width: 140px; }
+.filter-clear {
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+}
+.filter-clear:hover { color: var(--c-text); text-decoration: underline; }
+
+/* ---------- Checkbox / Switch ---------- */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.check input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--c-accent);
+  cursor: pointer;
+}
+
+
+/* ============================================================
+   App layout — shell de 3 zonas (sidebar / header / contenido)
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-columns: var(--layout-sidebar) 1fr;
+  grid-template-rows: var(--layout-header) 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar content";
+  height: 100vh;
+  overflow: hidden;
+}
+.app.is-sidebar-collapsed {
+  grid-template-columns: var(--layout-sidebar-collapsed) 1fr;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-sidebar);
+  overflow: hidden;
+  transition: width var(--mo-base);
+}
+.sidebar-brand {
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+  height: var(--layout-header);
+  flex-shrink: 0;
+}
+.brand-mark {
+  width: 28px; height: 28px;
+  border-radius: var(--r-md);
+  background: var(--c-accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fz-sm);
+  flex-shrink: 0;
+}
+.brand-name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fz-md);
+  line-height: 1.1;
+}
+.brand-name small { display: block; font-weight: var(--fw-regular); font-size: var(--fz-xs); color: var(--c-text-muted); }
+
+.sidebar-nav {
+  padding: var(--s-2);
+  flex: 1;
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-medium);
+  font-size: var(--fz-base);
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+  position: relative;
+  transition: background var(--mo-fast), color var(--mo-fast);
+}
+.nav-item:hover { background: var(--c-surface-2); color: var(--c-text); }
+.nav-item[aria-current="page"] {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-ink);
+}
+.nav-item .lucide { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: var(--c-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  min-width: 18px;
+  text-align: center;
+}
+.nav-item .nav-badge.is-zero { display: none; }
+.nav-item .nav-badge.is-info { background: var(--c-info); }
+.nav-item .nav-badge.is-warn { background: var(--c-warn); }
+
+.sidebar-footer {
+  padding: var(--s-2);
+  border-top: 1px solid var(--c-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.sync-status {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 8px 12px;
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+  border-radius: var(--r-md);
+}
+.sync-status:hover { background: var(--c-surface-2); color: var(--c-text); cursor: pointer; }
+.sync-status .sync-label { flex: 1; }
+
+/* Sidebar collapsed: oculta texto, deja iconos */
+.app.is-sidebar-collapsed .brand-name,
+.app.is-sidebar-collapsed .nav-item span:not(.nav-badge),
+.app.is-sidebar-collapsed .sync-label,
+.app.is-sidebar-collapsed .nav-item .nav-badge { display: none; }
+.app.is-sidebar-collapsed .nav-item { justify-content: center; padding: 8px 0; }
+.app.is-sidebar-collapsed .sync-status { justify-content: center; padding: 8px 0; }
+.app.is-sidebar-collapsed .sidebar-brand { justify-content: center; padding: var(--s-3) 0; }
+
+/* ---------- Header ---------- */
+.header {
+  grid-area: header;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-4);
+  z-index: var(--z-header);
+}
+.header-title {
+  font-size: var(--fz-lg);
+  font-weight: var(--fw-semibold);
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.header-title small { font-weight: var(--fw-regular); color: var(--c-text-muted); font-size: var(--fz-sm); }
+.header-actions { display: flex; gap: var(--s-2); align-items: center; }
+
+.menu {
+  position: relative;
+}
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 220px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2);
+  z-index: 50;
+  padding: var(--s-1);
+  display: flex; flex-direction: column;
+}
+.menu-pop button {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 8px 10px;
+  font-size: var(--fz-sm);
+  color: var(--c-text);
+  border-radius: var(--r-sm);
+  text-align: left;
+  width: 100%;
+}
+.menu-pop button:hover { background: var(--c-surface-2); }
+.menu-pop button .lucide { width: 16px; height: 16px; color: var(--c-text-muted); }
+.menu-pop hr { margin: 4px 2px; }
+
+/* ---------- Content ---------- */
+.content {
+  grid-area: content;
+  overflow-y: auto;
+  padding: var(--s-5);
+  background: var(--c-bg);
+}
+.view { max-width: var(--layout-content-max); margin: 0 auto; }
+.view-header {
+  margin-bottom: var(--s-4);
+  display: flex; flex-wrap: wrap; gap: var(--s-3);
+  align-items: end; justify-content: space-between;
+}
+.view-header h2 { font-size: var(--fz-xl); }
+.view-header p { color: var(--c-text-muted); font-size: var(--fz-sm); margin-top: 2px; }
+
+/* ---------- Grid helpers ---------- */
+.grid {
+  display: grid;
+  gap: var(--s-3);
+}
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ---------- Equipos view ---------- */
+.equipo-row .est {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.equipo-id {
+  font-family: var(--ff-mono);
+  font-size: var(--fz-sm);
+  color: var(--c-text-muted);
+}
+
+/* Equipo: vista de tarjetas para móvil */
+.equipo-card-list { display: none; }
+.equipo-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-3);
+  margin-bottom: var(--s-2);
+  cursor: pointer;
+}
+.equipo-card .ec-title { font-weight: var(--fw-medium); margin-bottom: 2px; }
+.equipo-card .ec-meta { font-size: var(--fz-xs); color: var(--c-text-muted); }
+.equipo-card .ec-foot { display: flex; gap: 6px; margin-top: var(--s-2); flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .equipos-table-wrap { display: none; }
+  .equipo-card-list { display: block; }
+}
+
+/* ---------- Mobile / responsive ---------- */
+@media (max-width: 1024px) {
+  .app { grid-template-columns: var(--layout-sidebar-collapsed) 1fr; }
+  .app .brand-name,
+  .app .sidebar .nav-item span:not(.nav-badge),
+  .app .sidebar .sync-label,
+  .app .sidebar .nav-item .nav-badge { display: none; }
+  .app .nav-item { justify-content: center; padding: 8px 0; }
+  .app .sync-status { justify-content: center; padding: 8px 0; }
+  .app .sidebar-brand { justify-content: center; padding: var(--s-3) 0; }
+  .app.is-mobile-drawer .sidebar { width: var(--layout-sidebar); }
+  .app.is-mobile-drawer .brand-name,
+  .app.is-mobile-drawer .nav-item span,
+  .app.is-mobile-drawer .sync-label { display: inline; }
+  .app.is-mobile-drawer .nav-item { justify-content: flex-start; padding: 8px 12px; }
+  .app.is-mobile-drawer .sync-status { justify-content: flex-start; padding: 8px 12px; }
+}
+@media (max-width: 768px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-areas: "header" "content";
+  }
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    height: 100vh;
+    width: var(--layout-sidebar);
+    transform: translateX(-100%);
+    transition: transform var(--mo-base);
+    box-shadow: var(--sh-3);
+  }
+  .app.is-mobile-drawer .sidebar { transform: none; }
+  .app.is-mobile-drawer::before {
+    content: ""; position: fixed; inset: 0;
+    background: rgba(15,23,32,.4); z-index: 5;
+  }
+  .content { padding: var(--s-3); }
+}
+
+/* ---------- KBD shortcut ---------- */
+kbd {
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 4px;
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  box-shadow: 0 1px 0 var(--c-border-strong);
+}
+
+/* ---------- Print discreto ---------- */
+@media print {
+  .sidebar, .header { display: none; }
+  .app { display: block; height: auto; }
+  .content { padding: 0; }
+}
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="sidebar-brand">
+        <div class="brand-mark" aria-hidden="true">MP</div>
+        <div class="brand-name">Gestión MP 2026<small>HHHA</small></div>
+      </div>
+      <nav class="sidebar-nav" role="navigation">
+        <button class="nav-item" data-route="hoy">
+          <i data-lucide="sun"></i><span>Hoy</span>
+          <span class="nav-badge is-zero" id="badge-hoy">0</span>
+        </button>
+        <button class="nav-item" data-route="equipos">
+          <i data-lucide="hard-drive"></i><span>Equipos</span>
+        </button>
+        <button class="nav-item" data-route="pendientes">
+          <i data-lucide="check-square"></i><span>Pendientes</span>
+          <span class="nav-badge is-zero" id="badge-pendientes">0</span>
+        </button>
+        <button class="nav-item" data-route="verificacion">
+          <i data-lucide="shield-check"></i><span>Verificación</span>
+        </button>
+        <button class="nav-item" data-route="agenda">
+          <i data-lucide="users"></i><span>Agenda</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sync-status" id="sync-status" title="Configurar sincronización">
+          <span class="dot" id="sync-dot"></span>
+          <span class="sync-label" id="sync-label">Sin sync</span>
+          <i data-lucide="settings"></i>
+        </button>
+        <button class="nav-item" id="btn-sidebar-toggle" title="Colapsar barra lateral">
+          <i data-lucide="chevrons-left"></i><span>Colapsar</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Header -->
+    <header class="header" role="banner">
+      <button class="btn btn-icon btn-ghost btn-sm" id="btn-sidebar" aria-label="Menú" style="display:none">
+        <i data-lucide="menu"></i>
+      </button>
+      <div class="header-title">
+        <span id="header-title-text">Hoy</span>
+      </div>
+      <div class="header-actions">
+        <input type="file" id="file-input" accept=".xlsm,.xlsx,.xls" hidden />
+        <button class="btn" id="btn-upload" title="Cargar Programacion_MP_2026.xlsm">
+          <i data-lucide="upload"></i><span class="nav-label-hidden-sm">Cargar archivo</span>
+        </button>
+        <div class="menu">
+          <button class="btn btn-icon btn-ghost" id="btn-menu" aria-label="Más opciones" aria-haspopup="menu" aria-expanded="false">
+            <i data-lucide="more-vertical"></i>
+          </button>
+          <div class="menu-pop hidden" id="header-menu-pop" role="menu">
+            <button id="menu-user"><i data-lucide="user"></i> Mi usuario</button>
+            <button id="menu-gas"><i data-lucide="cloud"></i> Sincronización…</button>
+            <hr/>
+            <button id="menu-export-json"><i data-lucide="download"></i> Exportar JSON</button>
+            <hr/>
+            <button id="menu-reset" style="color:var(--c-danger)"><i data-lucide="trash-2"></i> Borrar todos los datos</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="content" id="view-root" role="main">
+      <div class="view">
+        <div class="empty">
+          <i data-lucide="loader-2"></i>
+          <div class="empty-title">Cargando…</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <noscript>
+    <div style="padding:20px;text-align:center;font-family:sans-serif">
+      Esta aplicación requiere JavaScript habilitado.
+    </div>
+  </noscript>
+<script>
+var __mp__ = { modules: {} };
+/* ===== js/utils.js ===== */
+(function(){
+
+/* Utilidades genéricas — fechas, formato, escape, IDs, throttling */
+
+function uid() {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+/* Generador correlativo basado en timestamp (YYYYMMDDHHMMSS), con sufijo si choca */
+function timestampUid(existing) {
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const base = `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+  if (!existing || !existing.has(base)) return base;
+  for (let i = 1; i < 1000; i++) {
+    const cand = `${base}_${i}`;
+    if (!existing.has(cand)) return cand;
+  }
+  return base + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+function todayISO() {
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+
+function addDaysISO(iso, n) {
+  if (!iso) return iso;
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  const p2 = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+
+function diffDays(isoA, isoB) {
+  if (!isoA || !isoB) return null;
+  const a = new Date(isoA + 'T00:00:00').getTime();
+  const b = new Date(isoB + 'T00:00:00').getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+function fmtDateLong(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
+    return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return iso; }
+}
+
+function fmtRelative(iso) {
+  if (!iso) return '';
+  const t = todayISO();
+  const d = diffDays(t, iso);
+  if (d === null) return '';
+  if (d === 0) return 'hoy';
+  if (d === 1) return 'mañana';
+  if (d === -1) return 'ayer';
+  if (d > 0)   return `en ${d} días`;
+  return `hace ${Math.abs(d)} días`;
+}
+
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+  return (n/1048576).toFixed(1) + ' MB';
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function val(v) { return (v === null || v === undefined || v === '') ? '—' : escapeHtml(v); }
+
+function shortName(name) {
+  if (!name) return '';
+  const parts = String(name).trim().split(/\s+/);
+  if (parts.length <= 1) return parts[0] || '';
+  return parts[0] + ' ' + parts[1][0] + '.';
+}
+
+function debounce(fn, ms) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+function nextFrame() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+/* Convierte cualquier formato (Date, ISO con T, dd-mm-yyyy) a YYYY-MM-DD */
+function toISODate(v) {
+  if (!v) return '';
+  if (v instanceof Date && !isNaN(v)) {
+    const p2 = n => String(n).padStart(2, '0');
+    return `${v.getFullYear()}-${p2(v.getMonth()+1)}-${p2(v.getDate())}`;
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  const d = new Date(s);
+  if (!isNaN(d)) {
+    const p2 = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  }
+  return '';
+}
+
+/* Decodifica base64 → Uint8Array (para descargar el maestro desde Drive) */
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function bytesToBase64(bytes) {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/* Sanitiza nombre de archivo */
+function safeFilename(s, max = 120) {
+  return String(s || 'archivo').replace(/[\/\\:*?"<>|]/g, '_').slice(0, max);
+}
+
+/* Genera nombre de carpeta Drive a partir de la key del equipo */
+function keyToFolderName(key) {
+  if (!key) return 'sin-key';
+  const s = String(key);
+  if (s.startsWith('inv:')) return s.slice(4);
+  if (s.startsWith('id:'))  return 'ID-' + s.slice(3);
+  return s;
+}
+
+/* Iconos Lucide por tipo de archivo */
+function fileIconFor(mime, name) {
+  const ext = (name || '').split('.').pop().toLowerCase();
+  if ((mime||'').startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(ext)) return 'image';
+  if (['pdf'].includes(ext) || (mime||'').includes('pdf')) return 'file-text';
+  if (['xls','xlsx','xlsm','csv'].includes(ext) || (mime||'').includes('sheet')) return 'sheet';
+  if (['doc','docx'].includes(ext) || (mime||'').includes('word')) return 'file-text';
+  if (['zip','rar','7z'].includes(ext)) return 'archive';
+  return 'file';
+}
+
+/* Render Lucide tras inyectar HTML */
+function renderIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+
+/* Construye una key estable: inv:XXX si tiene N° Inventario, sino id:YYY */
+function makeEquipoKey(eq) {
+  if (eq && eq.inv) return 'inv:' + String(eq.inv).trim();
+  if (eq && eq.id)  return 'id:' + String(eq.id).trim();
+  return null;
+}
+
+__mp__.modules['js/utils.js'] = { uid, timestampUid, todayISO, addDaysISO, diffDays, fmtDate, fmtDateLong, fmtRelative, fmtBytes, escapeHtml, val, shortName, debounce, nextFrame, toISODate, base64ToBytes, bytesToBase64, safeFilename, keyToFolderName, fileIconFor, renderIcons, makeEquipoKey };
+})();
+
+/* ===== js/state.js ===== */
+(function(){
+const uid = __mp__.modules['js/utils.js'].uid;
+/* Estado global + persistencia local + bus de eventos
+   ============================================================
+   - state: objeto único accesible
+   - load / save funciones leen y escriben localStorage (formato v4 original)
+   - subscribe(key, fn): notificación reactiva mínima
+*/
+
+
+
+const STORAGE_KEY = 'mp_app_state_v1';
+const DATA_KEY    = 'mp_app_data_v1';
+const SYNC_KEY    = 'mp_app_sync_v1';
+const PREF_KEY    = 'mp_app_prefs_v1';
+const GAS_KEY     = 'mp_app_gas_v1';
+const MIG_KEY     = 'mp_app_mig_v40';
+
+const state = {
+  equipos: [],
+  loaded: false,
+  fileName: '',
+  loadedAt: null,
+  verif: null,
+  eventos: {},      // { equipoKey: [evento, ...] }
+  pendientes: {},   // { equipoKey: [pendiente, ...] }
+  agenda: { servicios: {}, centros: [], directorio: [], empresas: [] },
+  syncMarked: new Set(),
+  masterMeta: null,
+  prefs: { miUsuario: '', sidebarCollapsed: false }
+};
+
+/* ----- Pub/sub minimal ----- */
+const listeners = new Map();
+function subscribe(key, fn) {
+  if (!listeners.has(key)) listeners.set(key, new Set());
+  listeners.get(key).add(fn);
+  return () => listeners.get(key)?.delete(fn);
+}
+function emit(key, payload) {
+  listeners.get(key)?.forEach(fn => { try { fn(payload); } catch(e) { console.error(e); } });
+  listeners.get('*')?.forEach(fn => { try { fn({ key, payload }); } catch(e) {} });
+}
+
+/* ----- Persistencia: datos del Excel (caché) ----- */
+function loadDataCache() {
+  try {
+    const raw = localStorage.getItem(DATA_KEY);
+    if (!raw) return false;
+    const obj = JSON.parse(raw);
+    state.equipos = obj.equipos || [];
+    state.fileName = obj.fileName || '';
+    state.loadedAt = obj.loadedAt || null;
+    state.verif = obj.verif || null;
+    state.loaded = state.equipos.length > 0;
+    return state.loaded;
+  } catch { return false; }
+}
+function saveDataCache() {
+  try {
+    localStorage.setItem(DATA_KEY, JSON.stringify({
+      equipos: state.equipos,
+      fileName: state.fileName,
+      loadedAt: state.loadedAt,
+      verif: state.verif
+    }));
+  } catch (err) { console.warn('saveDataCache failed', err); }
+}
+function clearDataCache() {
+  localStorage.removeItem(DATA_KEY);
+  state.equipos = [];
+  state.loaded = false;
+  state.fileName = '';
+  state.loadedAt = null;
+  state.verif = null;
+  emit('data:cleared');
+}
+
+/* ----- Persistencia: estado de usuario (eventos/pendientes/agenda) ----- */
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    state.eventos    = obj.eventos    || {};
+    state.pendientes = obj.pendientes || {};
+    state.agenda     = obj.agenda     || { servicios: {}, centros: [], directorio: [], empresas: [] };
+    ensureAgendaShape();
+  } catch (err) { console.warn('loadPersisted failed', err); }
+}
+function savePersisted() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      eventos: state.eventos,
+      pendientes: state.pendientes,
+      agenda: state.agenda
+    }));
+    emit('state:saved');
+  } catch (err) { console.warn('savePersisted failed', err); }
+}
+
+/* ----- Sync markers (ocultar discrepancias resueltas) ----- */
+function loadSyncMarked() {
+  try {
+    const raw = localStorage.getItem(SYNC_KEY);
+    state.syncMarked = new Set(raw ? JSON.parse(raw) : []);
+  } catch { state.syncMarked = new Set(); }
+}
+function saveSyncMarked() {
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify([...state.syncMarked])); }
+  catch (err) { console.warn('saveSyncMarked failed', err); }
+  emit('sync:changed');
+}
+
+/* ----- Preferencias ----- */
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREF_KEY);
+    if (raw) Object.assign(state.prefs, JSON.parse(raw));
+  } catch {}
+}
+function savePrefs() {
+  try { localStorage.setItem(PREF_KEY, JSON.stringify(state.prefs)); }
+  catch {}
+}
+
+/* ----- GAS config (backend) ----- */
+function loadGasConfig() {
+  try {
+    const raw = localStorage.getItem(GAS_KEY);
+    return raw ? JSON.parse(raw) : { url: '', autoSync: true, status: 'off', lastSync: null };
+  } catch { return { url: '', autoSync: true, status: 'off', lastSync: null }; }
+}
+function saveGasConfig(cfg) {
+  try { localStorage.setItem(GAS_KEY, JSON.stringify(cfg)); } catch {}
+}
+
+/* ----- Asegura forma de agenda (estructura mínima) ----- */
+function ensureAgendaShape() {
+  if (!state.agenda) state.agenda = { servicios: {}, centros: [], directorio: [], empresas: [] };
+  if (!state.agenda.servicios)  state.agenda.servicios  = {};
+  if (!state.agenda.centros)    state.agenda.centros    = [];
+  if (!state.agenda.directorio) state.agenda.directorio = [];
+  if (!state.agenda.empresas)   state.agenda.empresas   = [];
+  Object.keys(state.agenda.servicios).forEach(srv => {
+    const s = state.agenda.servicios[srv];
+    if (!s.otros) s.otros = [];
+  });
+}
+
+/* ----- Wipe total ----- */
+function resetAllData() {
+  [STORAGE_KEY, DATA_KEY, SYNC_KEY, PREF_KEY, MIG_KEY].forEach(k => localStorage.removeItem(k));
+  state.equipos = [];
+  state.eventos = {};
+  state.pendientes = {};
+  state.agenda = { servicios: {}, centros: [], directorio: [], empresas: [] };
+  state.syncMarked = new Set();
+  state.loaded = false;
+  state.fileName = '';
+  state.loadedAt = null;
+  state.verif = null;
+}
+
+/* ----- Sets de IDs (evita choques) ----- */
+function allEventoIds() {
+  const s = new Set();
+  Object.values(state.eventos).forEach(arr => (arr || []).forEach(e => e.id && s.add(e.id)));
+  return s;
+}
+function allPendienteIds() {
+  const s = new Set();
+  Object.values(state.pendientes).forEach(arr => (arr || []).forEach(p => p.id && s.add(p.id)));
+  return s;
+}
+
+/* ----- CRUD eventos ----- */
+function upsertEvento(key, evento) {
+  if (!state.eventos[key]) state.eventos[key] = [];
+  const arr = state.eventos[key];
+  const idx = arr.findIndex(e => e.id === evento.id);
+  if (idx >= 0) arr[idx] = evento; else arr.push(evento);
+  savePersisted();
+  emit('evento:changed', { key, evento });
+}
+function deleteEvento(key, id) {
+  const arr = state.eventos[key];
+  if (!arr) return null;
+  const idx = arr.findIndex(e => e.id === id);
+  if (idx < 0) return null;
+  const removed = arr.splice(idx, 1)[0];
+  if (!arr.length) delete state.eventos[key];
+  savePersisted();
+  emit('evento:deleted', { key, id });
+  return removed;
+}
+function restoreEvento(key, evento, atIdx) {
+  if (!state.eventos[key]) state.eventos[key] = [];
+  if (typeof atIdx === 'number') state.eventos[key].splice(atIdx, 0, evento);
+  else state.eventos[key].push(evento);
+  savePersisted();
+  emit('evento:restored', { key, evento });
+}
+
+/* ----- CRUD pendientes ----- */
+function upsertPendiente(key, pendiente) {
+  if (!state.pendientes[key]) state.pendientes[key] = [];
+  const arr = state.pendientes[key];
+  const idx = arr.findIndex(p => p.id === pendiente.id);
+  if (idx >= 0) arr[idx] = pendiente; else arr.push(pendiente);
+  savePersisted();
+  emit('pendiente:changed', { key, pendiente });
+}
+function deletePendiente(key, id) {
+  const arr = state.pendientes[key];
+  if (!arr) return null;
+  const idx = arr.findIndex(p => p.id === id);
+  if (idx < 0) return null;
+  const removed = arr.splice(idx, 1)[0];
+  if (!arr.length) delete state.pendientes[key];
+  savePersisted();
+  emit('pendiente:deleted', { key, id });
+  return removed;
+}
+function findPendiente(key, pid) {
+  const arr = state.pendientes[key];
+  if (!arr) return null;
+  return arr.find(p => p.id === pid) || null;
+}
+function findEvento(key, eid) {
+  const arr = state.eventos[key];
+  if (!arr) return null;
+  return arr.find(e => e.id === eid) || null;
+}
+
+/* ----- Iteración con migración v4.0: extrae pendientes de texto legacy ----- */
+function runMigrationV4() {
+  if (localStorage.getItem(MIG_KEY) === '1') return 0;
+  let count = 0;
+  Object.entries(state.eventos).forEach(([key, arr]) => {
+    (arr || []).forEach(ev => {
+      const txt = ev.observacion || '';
+      const m = txt.match(/PENDIENTES?\s*:\s*([\s\S]+)$/i);
+      if (!m) return;
+      const lines = m[1].split(/\n+/).map(s => s.trim()).filter(Boolean);
+      lines.forEach(line => {
+        const desc = line.replace(/^[-•*\d.\)]+\s*/, '').trim();
+        if (!desc) return;
+        const pid = uid();
+        if (!state.pendientes[key]) state.pendientes[key] = [];
+        state.pendientes[key].push({
+          id: pid,
+          descripcion: desc,
+          fecha: ev.fecha || '',
+          fechaCompromiso: '',
+          proximoRecordatorio: '',
+          fechaCierre: '',
+          ejecutor: ev.ejecutor || '',
+          estado: 'creado',
+          tareas: [],
+          actualizaciones: [],
+          archivos: []
+        });
+        count++;
+      });
+    });
+  });
+  if (count) savePersisted();
+  localStorage.setItem(MIG_KEY, '1');
+  return count;
+}
+
+__mp__.modules['js/state.js'] = { state, subscribe, emit, loadDataCache, saveDataCache, clearDataCache, loadPersisted, savePersisted, loadSyncMarked, saveSyncMarked, loadPrefs, savePrefs, loadGasConfig, saveGasConfig, ensureAgendaShape, resetAllData, allEventoIds, allPendienteIds, upsertEvento, deleteEvento, restoreEvento, upsertPendiente, deletePendiente, findPendiente, findEvento, runMigrationV4 };
+})();
+
+/* ===== js/data/excel.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const saveDataCache = __mp__.modules['js/state.js'].saveDataCache;
+const makeEquipoKey = __mp__.modules['js/utils.js'].makeEquipoKey;
+const toISODate = __mp__.modules['js/utils.js'].toISODate;
+/* Parseo del libro Excel "Programacion_MP_2026.xlsm".
+   Conserva la lógica del original:
+   - Hoja PMP_2026 (programación, header en fila 7)
+   - Hoja Registro_MP-2026 (resultados por mes)
+   - Combina ambas; computa verif (counts, duplicados, parciales, headers).
+*/
+
+
+
+
+const PMP_SHEET = 'PMP_2026';
+const REG_SHEET = 'Registro_MP-2026';
+
+const PMP_HEADERS_EXPECTED = [
+  'Familia', 'ID', 'Carpeta', 'N° Inventario', 'Equipo', 'Servicio', 'Unidad',
+  'Ubicación', 'Procedencia', 'Marca', 'Modelo', 'N° Serie', 'Año',
+  'VUR', 'Clasificación', 'Enuncia. Baja', 'Frecuencia',
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+];
+
+const HEADER_ALIASES = {
+  'N° Inventario': ['N Inventario', 'No Inventario', 'Nº Inventario', 'Inventario'],
+  'N° Serie': ['N Serie', 'Nº Serie', 'Serie'],
+  'Ubicación': ['Ubicacion'],
+  'Año': ['Ano', 'Anio'],
+  'Clasificación': ['Clasificacion'],
+  'Enuncia. Baja': ['Enuncia Baja', 'Baja']
+};
+
+const MES_KEYS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function normalizeHeader(h) {
+  return String(h || '').trim().replace(/\s+/g, ' ');
+}
+function matchesAlias(expected, actual) {
+  if (normalizeHeader(actual) === normalizeHeader(expected)) return true;
+  const aliases = HEADER_ALIASES[expected] || [];
+  return aliases.some(a => normalizeHeader(actual) === normalizeHeader(a));
+}
+
+/* Parsea workbook completo. Devuelve { ok, warnings, equipos, verif } */
+function parseWorkbook(wb) {
+  const warnings = [];
+  const pmp = wb.Sheets[PMP_SHEET];
+  const reg = wb.Sheets[REG_SHEET];
+  if (!pmp) return { ok: false, error: `Falta hoja "${PMP_SHEET}"`, warnings };
+
+  /* PMP: header en fila 7 (índice 6), datos desde fila 8 */
+  const pmpRows = window.XLSX.utils.sheet_to_json(pmp, { header: 1, defval: '' });
+  if (pmpRows.length < 8) return { ok: false, error: 'PMP_2026 sin datos', warnings };
+  const headers = pmpRows[6].map(normalizeHeader);
+  /* Mapear índices contra expected */
+  const idx = {};
+  PMP_HEADERS_EXPECTED.forEach(expected => {
+    const i = headers.findIndex(h => matchesAlias(expected, h));
+    if (i < 0) warnings.push(`Falta columna esperada: "${expected}"`);
+    idx[expected] = i;
+  });
+
+  const equipos = [];
+  for (let r = 7; r < pmpRows.length; r++) {
+    const row = pmpRows[r];
+    if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
+    const get = h => idx[h] >= 0 ? row[idx[h]] : '';
+    const eq = {
+      rowIndex: r + 1,
+      fam:        String(get('Familia') || '').trim(),
+      id:         String(get('ID') || '').trim(),
+      carpeta:    String(get('Carpeta') || '').trim(),
+      inv:        get('N° Inventario') !== '' ? String(get('N° Inventario')).trim() : null,
+      equipo:     String(get('Equipo') || '').trim(),
+      servicio:   String(get('Servicio') || '').trim(),
+      unidad:     String(get('Unidad') || '').trim(),
+      ubicacion:  String(get('Ubicación') || '').trim(),
+      procedencia:String(get('Procedencia') || '').trim(),
+      marca:      String(get('Marca') || '').trim(),
+      modelo:     String(get('Modelo') || '').trim(),
+      serie:      String(get('N° Serie') || '').trim(),
+      anio:       String(get('Año') || '').trim(),
+      vur:        String(get('VUR') || '').trim(),
+      clas:       String(get('Clasificación') || '').trim(),
+      enuBaja:    String(get('Enuncia. Baja') || '').trim(),
+      frecuencia: String(get('Frecuencia') || '').trim(),
+      pmpMeses:   MES_KEYS.map(m => String(get(m) || '').trim() || null),
+      regProg:    new Array(12).fill(null),
+      regRes:     new Array(12).fill(null),
+      regObs:     null,
+      empty:      false
+    };
+    eq.empty = !eq.equipo && !eq.inv && !eq.id;
+    eq.key = makeEquipoKey(eq);
+    equipos.push(eq);
+  }
+
+  /* Registro: combinar por key (inv o id), buscar columnas "Programado" y "Resultado" por mes */
+  const codeCounts = {};
+  const resCounts = {};
+  let regRowsCount = 0;
+  if (reg) {
+    const regRows = window.XLSX.utils.sheet_to_json(reg, { header: 1, defval: '' });
+    if (regRows.length >= 2) {
+      const rHead = regRows[6] ? regRows[6].map(normalizeHeader) : regRows[0].map(normalizeHeader);
+      const headerRowIdx = regRows[6] && rHead.length > 5 ? 6 : 0;
+      const ridx = {};
+      ['N° Inventario', 'ID'].forEach(h => {
+        const i = rHead.findIndex(x => matchesAlias(h, x));
+        if (i >= 0) ridx[h] = i;
+      });
+      MES_KEYS.forEach(m => {
+        const progI = rHead.findIndex(x => normalizeHeader(x) === `Programado ${m}` || normalizeHeader(x) === `${m} Programado`);
+        const resI  = rHead.findIndex(x => normalizeHeader(x) === `Resultado ${m}` || normalizeHeader(x) === `${m} Resultado`);
+        ridx['prog_'+m] = progI;
+        ridx['res_'+m]  = resI;
+      });
+      const byKey = new Map();
+      equipos.forEach(eq => { if (eq.key) byKey.set(eq.key, eq); });
+      for (let r = headerRowIdx + 1; r < regRows.length; r++) {
+        const row = regRows[r];
+        if (!row) continue;
+        const inv = ridx['N° Inventario'] >= 0 ? String(row[ridx['N° Inventario']] || '').trim() : '';
+        const id  = ridx['ID']            >= 0 ? String(row[ridx['ID']] || '').trim() : '';
+        const k   = inv ? ('inv:' + inv) : (id ? ('id:' + id) : null);
+        if (!k) continue;
+        const eq = byKey.get(k);
+        if (!eq) continue;
+        regRowsCount++;
+        MES_KEYS.forEach((m, mi) => {
+          const pi = ridx['prog_'+m], si = ridx['res_'+m];
+          if (pi >= 0) {
+            const v = String(row[pi] || '').trim();
+            if (v) {
+              eq.regProg[mi] = v;
+              codeCounts[v] = (codeCounts[v] || 0) + 1;
+            }
+          }
+          if (si >= 0) {
+            const v = String(row[si] || '').trim();
+            if (v) {
+              eq.regRes[mi] = v;
+              resCounts[v] = (resCounts[v] || 0) + 1;
+            }
+          }
+        });
+      }
+    } else {
+      warnings.push('Registro_MP-2026 está vacío o sin encabezados reconocibles.');
+    }
+  } else {
+    warnings.push(`Falta hoja "${REG_SHEET}" — sólo se cargará la programación.`);
+  }
+
+  /* Duplicados, parciales, familias */
+  const dupSet = new Set(), seen = new Map(), duplicados = [];
+  equipos.forEach(eq => {
+    if (eq.empty) return;
+    if (eq.inv) {
+      const k = 'inv:' + eq.inv;
+      if (seen.has(k)) { dupSet.add(k); duplicados.push({ key: k, rowIndex: eq.rowIndex, equipo: eq.equipo }); }
+      else seen.set(k, true);
+    }
+  });
+  const parciales = equipos.filter(eq => !eq.empty && (!eq.equipo || !eq.servicio)).map(eq => ({ rowIndex: eq.rowIndex, falta: !eq.equipo ? 'Equipo' : 'Servicio' }));
+  const familias = [...new Set(equipos.map(e => e.fam).filter(Boolean))].sort();
+  const validos = equipos.filter(e => !e.empty).length;
+  const slots = equipos.length;
+
+  return {
+    ok: true,
+    warnings,
+    equipos,
+    verif: {
+      pmpRows: pmpRows.length - 7,
+      regRows: regRowsCount,
+      validos,
+      slots,
+      familias,
+      codeCounts,
+      resCounts,
+      duplicados,
+      parciales,
+      headerWarnings: warnings.filter(w => w.startsWith('Falta columna'))
+    }
+  };
+}
+
+/* Lee archivo (File) y lo carga al state */
+export async function loadFile(file) {
+  if (!window.XLSX) throw new Error('SheetJS no cargado');
+  const buf = await file.arrayBuffer();
+  const wb = window.XLSX.read(buf, { type: 'array', cellDates: false });
+  const parsed = parseWorkbook(wb);
+  if (!parsed.ok) throw new Error(parsed.error);
+  state.equipos = parsed.equipos;
+  state.fileName = file.name;
+  state.loadedAt = new Date().toISOString();
+  state.verif = parsed.verif;
+  state.loaded = true;
+  saveDataCache();
+  return parsed;
+}
+
+/* Carga desde bytes (usado al restaurar maestro desde Drive) */
+export async function loadFromBytes(bytes, name = 'Maestro') {
+  if (!window.XLSX) throw new Error('SheetJS no cargado');
+  const wb = window.XLSX.read(bytes, { type: 'array', cellDates: false });
+  const parsed = parseWorkbook(wb);
+  if (!parsed.ok) throw new Error(parsed.error);
+  state.equipos = parsed.equipos;
+  state.fileName = name;
+  state.loadedAt = new Date().toISOString();
+  state.verif = parsed.verif;
+  state.loaded = true;
+  saveDataCache();
+  return parsed;
+}
+
+/* ---------- Estado del equipo según regRes + eventos del usuario ---------- */
+function getEquipoEstadoExtended(eq, eventosByKey) {
+  if (!eq) return { estado: 'no_registrado', desde: null, dias: null };
+  /* Usuario tiene prioridad: si último evento operativo es más reciente que un C/FS, gana */
+  const userEvs = (eventosByKey?.[eq.key] || []).slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const lastUser = userEvs[0];
+  if (lastUser && lastUser.estado) {
+    const today = new Date().toISOString().slice(0, 10);
+    return { estado: lastUser.estado, desde: lastUser.fecha, dias: diffDaysSimple(lastUser.fecha, today) };
+  }
+  /* Sino, derivar del último mes con resultado */
+  let lastRes = null, lastMonth = -1;
+  for (let i = 11; i >= 0; i--) {
+    if (eq.regRes[i]) { lastRes = eq.regRes[i]; lastMonth = i; break; }
+  }
+  if (!lastRes) return { estado: 'no_registrado', desde: null, dias: null };
+  const year = new Date().getFullYear();
+  const desde = `${year}-${String(lastMonth + 1).padStart(2, '0')}-15`;
+  const today = new Date().toISOString().slice(0, 10);
+  const dias = diffDaysSimple(desde, today);
+  let estado = 'operativo';
+  if (lastRes === 'Si') estado = 'operativo';
+  else if (lastRes.match(/^C[1-8]$/)) estado = 'no operativo';
+  else if (lastRes === 'FS') estado = 'fuera_servicio';
+  else if (lastRes === 'Baja') estado = 'baja';
+  else if (lastRes === 'NU') estado = 'no_ubicado';
+  return { estado, desde, dias, codigo: lastRes };
+}
+
+function diffDaysSimple(a, b) {
+  if (!a || !b) return null;
+  const da = new Date(a + 'T00:00:00').getTime();
+  const db = new Date(b + 'T00:00:00').getTime();
+  return Math.round((db - da) / 86400000);
+}
+
+__mp__.modules['js/data/excel.js'] = { parseWorkbook, getEquipoEstadoExtended };
+})();
+
+/* ===== js/data/gas.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const saveGasConfig = __mp__.modules['js/state.js'].saveGasConfig;
+const loadGasConfig = __mp__.modules['js/state.js'].loadGasConfig;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const ensureAgendaShape = __mp__.modules['js/state.js'].ensureAgendaShape;
+const debounce = __mp__.modules['js/utils.js'].debounce;
+const bytesToBase64 = __mp__.modules['js/utils.js'].bytesToBase64;
+const base64ToBytes = __mp__.modules['js/utils.js'].base64ToBytes;
+/* Sincronización con backend Google Apps Script.
+   Acciones soportadas (ver Code.gs original):
+     - replaceAll, upsertContacto, upsertCR, deleteCR
+     - markSynced, unmarkAllSynced
+     - uploadFile, deleteFile
+     - uploadMaster, getMaster, getMasterMeta, ping
+*/
+
+
+
+
+const gas = {
+  url: '',
+  autoSync: true,
+  status: 'off',       // off | ok | syncing | error | pending
+  lastSync: null,
+  lastError: null,
+  masterMeta: null,
+  _statusListeners: new Set()
+};
+
+function onGasStatus(fn) { gas._statusListeners.add(fn); return () => gas._statusListeners.delete(fn); }
+function setStatus(s, err = null) {
+  gas.status = s;
+  gas.lastError = err;
+  gas._statusListeners.forEach(fn => { try { fn(s, err); } catch(_){} });
+}
+
+function initGas() {
+  const cfg = loadGasConfig();
+  gas.url = cfg.url || '';
+  gas.autoSync = cfg.autoSync !== false;
+  gas.lastSync = cfg.lastSync || null;
+  setStatus(gas.url ? 'pending' : 'off');
+}
+
+function configureGas({ url, autoSync }) {
+  if (typeof url === 'string') gas.url = url.trim();
+  if (typeof autoSync === 'boolean') gas.autoSync = autoSync;
+  saveGasConfig({ url: gas.url, autoSync: gas.autoSync, lastSync: gas.lastSync });
+  setStatus(gas.url ? 'pending' : 'off');
+}
+
+async function gasRequest(body) {
+  if (!gas.url) throw new Error('Backend no configurado');
+  const res = await fetch(gas.url, {
+    method: 'POST',
+    /* IMPORTANTE: text/plain evita preflight CORS (GAS no envía cabeceras CORS) */
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error('Respuesta inválida del backend'); }
+  if (data && data.ok === false) throw new Error(data.error || 'Error backend');
+  return data;
+}
+
+export async function pingGas(url) {
+  const prev = gas.url;
+  gas.url = url || gas.url;
+  try {
+    const r = await gasRequest({ action: 'ping' });
+    gas.url = prev || gas.url;
+    return r.result || r;
+  } catch (err) {
+    gas.url = prev;
+    throw err;
+  }
+}
+
+/* Construye lookup: { 'inv:XXX': { nInv, equipo, servicio, fam, marca, modelo, serie, ... } } */
+function buildEquiposLookup() {
+  const out = {};
+  state.equipos.forEach(eq => {
+    if (!eq.key || eq.empty) return;
+    out[eq.key] = {
+      nInv: eq.inv || ('ID-' + eq.id),
+      equipo: eq.equipo,
+      servicio: eq.servicio,
+      fam: eq.fam,
+      marca: eq.marca,
+      modelo: eq.modelo,
+      serie: eq.serie
+    };
+  });
+  return out;
+}
+
+/* Push completo de eventos/pendientes/agenda/syncMarked al backend */
+export async function pushAll() {
+  if (!gas.url) return null;
+  setStatus('syncing');
+  try {
+    const payload = {
+      eventos: state.eventos,
+      pendientes: state.pendientes,
+      agenda: state.agenda,
+      syncMarked: [...state.syncMarked],
+      equiposLookup: buildEquiposLookup()
+    };
+    const r = await gasRequest({ action: 'replaceAll', payload });
+    gas.lastSync = new Date().toISOString();
+    saveGasConfig({ url: gas.url, autoSync: gas.autoSync, lastSync: gas.lastSync });
+    setStatus('ok');
+    return r.result;
+  } catch (err) {
+    setStatus('error', err.message);
+    throw err;
+  }
+}
+
+const pushAllDebounced = debounce(() => pushAll().catch(err => console.warn('push fail', err)), 1500);
+
+function schedulePush() {
+  if (!gas.url || !gas.autoSync) return;
+  setStatus('pending');
+  pushAllDebounced();
+}
+
+/* Pull: descarga estado completo del backend (replace local) */
+export async function pullAll() {
+  if (!gas.url) return null;
+  setStatus('syncing');
+  try {
+    const res = await fetch(gas.url + '?action=read');
+    const data = await res.json();
+    state.eventos    = data.eventos    || {};
+    state.pendientes = data.pendientes || {};
+    state.agenda     = data.agenda     || { servicios: {}, centros: [], directorio: [], empresas: [] };
+    ensureAgendaShape();
+    state.syncMarked = new Set(data.syncMarked || []);
+    savePersisted();
+    gas.lastSync = new Date().toISOString();
+    saveGasConfig({ url: gas.url, autoSync: gas.autoSync, lastSync: gas.lastSync });
+    setStatus('ok');
+    return data;
+  } catch (err) {
+    setStatus('error', err.message);
+    throw err;
+  }
+}
+
+/* Adjuntos */
+export async function uploadFile(inv, prefix, file) {
+  if (!gas.url) throw new Error('Backend requerido para adjuntos');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const base64 = bytesToBase64(bytes);
+  const r = await gasRequest({
+    action: 'uploadFile',
+    payload: { inv, prefix, name: file.name, mime: file.type || 'application/octet-stream', base64 }
+  });
+  return r.result;
+}
+export async function deleteFile(id) {
+  if (!gas.url) throw new Error('Backend requerido');
+  return (await gasRequest({ action: 'deleteFile', payload: { id } })).result;
+}
+
+/* Maestro */
+export async function uploadMaster(file) {
+  if (!gas.url) throw new Error('Backend requerido');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const base64 = bytesToBase64(bytes);
+  const r = await gasRequest({
+    action: 'uploadMaster',
+    payload: { name: file.name, mime: file.type, base64 }
+  });
+  return r.result;
+}
+
+export async function getMasterMeta() {
+  if (!gas.url) return null;
+  try {
+    const res = await fetch(gas.url + '?action=getMasterMeta');
+    const data = await res.json();
+    if (data && data.ok) {
+      gas.masterMeta = data.result;
+      return data.result;
+    }
+  } catch(_){ }
+  return null;
+}
+
+export async function fetchMaster() {
+  if (!gas.url) return null;
+  const res = await fetch(gas.url + '?action=getMaster');
+  const data = await res.json();
+  const obj = data.result || data;
+  if (!obj || !obj.hasMaster) return null;
+  if (obj.error) throw new Error(obj.error);
+  return { name: obj.name, mime: obj.mime, bytes: base64ToBytes(obj.base64), uploadedAt: obj.uploadedAt };
+}
+
+__mp__.modules['js/data/gas.js'] = { gas, onGasStatus, initGas, configureGas, pushAllDebounced, schedulePush };
+})();
+
+/* ===== js/ui.js ===== */
+(function(){
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+/* UI primitives — Toast (con Deshacer), Modal stack, Loading overlay, Confirm */
+
+
+
+/* ============================================================
+   TOAST con acción "Deshacer"
+   ============================================================ */
+const TOAST_HOST_ID = 'toast-stack';
+function toastHost() {
+  let host = document.getElementById(TOAST_HOST_ID);
+  if (!host) {
+    host = document.createElement('div');
+    host.id = TOAST_HOST_ID;
+    host.className = 'toast-stack';
+    host.setAttribute('role', 'status');
+    host.setAttribute('aria-live', 'polite');
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+/**
+ * toast({ message, kind, action?, durationMs? })
+ * kind: 'ok' | 'warn' | 'danger' | 'info'
+ * action: { label, onClick } — opcional; útil para Deshacer
+ */
+function toast({ message, kind = 'info', action, durationMs = 4500 }) {
+  const host = toastHost();
+  const el = document.createElement('div');
+  el.className = `toast toast-${kind}`;
+  const icon = kind === 'ok' ? 'check-circle-2' : kind === 'warn' ? 'alert-triangle' : kind === 'danger' ? 'alert-octagon' : 'info';
+  el.innerHTML = `
+    <i data-lucide="${icon}" aria-hidden="true"></i>
+    <div class="toast-body">${escapeHtml(message)}</div>
+    ${action ? `<button type="button" class="toast-action">${escapeHtml(action.label)}</button>` : ''}
+    <button type="button" class="toast-close btn-ghost btn-icon btn-sm" aria-label="Cerrar"><i data-lucide="x"></i></button>
+  `;
+  host.appendChild(el);
+  renderIcons();
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    el.style.transition = 'opacity 180ms, transform 180ms';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(12px)';
+    setTimeout(() => el.remove(), 200);
+  };
+
+  el.querySelector('.toast-close')?.addEventListener('click', dismiss);
+  if (action) {
+    el.querySelector('.toast-action')?.addEventListener('click', () => {
+      try { action.onClick?.(); } catch(e) { console.error(e); }
+      dismiss();
+    });
+  }
+  const t = setTimeout(dismiss, durationMs);
+  return { dismiss: () => { clearTimeout(t); dismiss(); } };
+}
+
+/* ============================================================
+   MODAL stack — sin anidación visual: el modal nuevo reemplaza
+   al anterior con animación; al cerrar, vuelve.
+   ============================================================ */
+const MODAL_HOST_ID = 'modal-host';
+const modalStack = [];
+
+function modalHost() {
+  let host = document.getElementById(MODAL_HOST_ID);
+  if (!host) {
+    host = document.createElement('div');
+    host.id = MODAL_HOST_ID;
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+/**
+ * openModal({ title, body, size, footer, onClose })
+ * body: HTML string o función que recibe el contenedor body y lo rellena
+ * footer: HTML string opcional para botones (la X ya está en el header)
+ * size: 'sm' | 'md' (default) | 'lg'
+ * returns: { close(), bodyEl, modalEl }
+ */
+function openModal({ title = '', body = '', size = 'md', footer = '', onClose, dismissible = true } = {}) {
+  const host = modalHost();
+  /* Si hay un modal previo, lo ocultamos (no destruimos) */
+  if (modalStack.length) {
+    const prev = modalStack[modalStack.length - 1];
+    prev.backdropEl.style.display = 'none';
+  }
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.setAttribute('role', 'dialog');
+  backdrop.setAttribute('aria-modal', 'true');
+  if (title) backdrop.setAttribute('aria-label', title);
+
+  const sizeCls = size === 'lg' ? 'modal-lg' : size === 'sm' ? 'modal-sm' : '';
+  backdrop.innerHTML = `
+    <div class="modal ${sizeCls}" tabindex="-1">
+      ${title ? `
+        <div class="modal-header">
+          <h2 class="modal-title">${escapeHtml(title)}</h2>
+          <button type="button" class="btn-ghost btn-icon btn-sm modal-close" aria-label="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+      ` : ''}
+      <div class="modal-body"></div>
+      ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
+    </div>
+  `;
+  host.appendChild(backdrop);
+  const modalEl  = backdrop.querySelector('.modal');
+  const bodyEl   = backdrop.querySelector('.modal-body');
+  if (typeof body === 'function') body(bodyEl);
+  else bodyEl.innerHTML = body;
+  renderIcons();
+
+  /* Foco inicial */
+  setTimeout(() => {
+    const focusable = modalEl.querySelector('input, select, textarea, button:not(.modal-close)');
+    (focusable || modalEl).focus();
+  }, 60);
+
+  const entry = { backdropEl: backdrop, modalEl, bodyEl, onClose };
+  modalStack.push(entry);
+
+  const close = () => {
+    const idx = modalStack.indexOf(entry);
+    if (idx < 0) return;
+    modalStack.splice(idx, 1);
+    backdrop.style.transition = 'opacity 160ms';
+    backdrop.style.opacity = '0';
+    setTimeout(() => {
+      backdrop.remove();
+      try { onClose?.(); } catch(e) { console.error(e); }
+      /* Restaurar el anterior si existe */
+      if (modalStack.length) {
+        const prev = modalStack[modalStack.length - 1];
+        prev.backdropEl.style.display = '';
+      }
+    }, 170);
+  };
+
+  if (dismissible) {
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('.modal-close')?.addEventListener('click', close);
+  }
+
+  return { close, bodyEl, modalEl, footer: backdrop.querySelector('.modal-footer') };
+}
+
+function closeAllModals() {
+  [...modalStack].reverse().forEach(m => m.backdropEl.remove());
+  modalStack.length = 0;
+}
+
+/* Captura Escape para cerrar modal superior */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!modalStack.length) return;
+  const top = modalStack[modalStack.length - 1];
+  /* Si el modal tiene un .modal-close, simulamos clic para mantener la animación */
+  const btn = top.modalEl.querySelector('.modal-close');
+  if (btn) btn.click();
+});
+
+/* ============================================================
+   CONFIRM — confirmación bloqueante simple (modal-sm)
+   ============================================================ */
+function confirmDialog({ title = 'Confirmar', message = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false }) {
+  return new Promise(resolve => {
+    const footer = `
+      <button type="button" class="btn cancel">${escapeHtml(cancelLabel)}</button>
+      <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'} confirm">${escapeHtml(confirmLabel)}</button>
+    `;
+    const m = openModal({
+      title,
+      size: 'sm',
+      body: `<p>${escapeHtml(message)}</p>`,
+      footer,
+      onClose: () => resolve(false)
+    });
+    m.footer.querySelector('.cancel').addEventListener('click', () => { m.close(); });
+    m.footer.querySelector('.confirm').addEventListener('click', () => {
+      resolve(true);
+      /* Borra el handler del onClose para evitar resolve doble */
+      m.modalEl.parentElement.onClose = null;
+      m.close();
+    });
+  });
+}
+
+/* ============================================================
+   LOADING overlay (fullscreen)
+   ============================================================ */
+let loadingEl = null;
+function showLoading(message = 'Cargando…', sub = '') {
+  if (loadingEl) {
+    loadingEl.querySelector('.loading-msg').textContent = message;
+    loadingEl.querySelector('.loading-sub').textContent = sub;
+    return;
+  }
+  loadingEl = document.createElement('div');
+  loadingEl.className = 'loading-overlay';
+  loadingEl.innerHTML = `
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="loading-msg semibold">${escapeHtml(message)}</div>
+    <div class="loading-sub muted text-sm">${escapeHtml(sub)}</div>
+  `;
+  document.body.appendChild(loadingEl);
+}
+function hideLoading() {
+  if (!loadingEl) return;
+  loadingEl.remove();
+  loadingEl = null;
+}
+
+/* ============================================================
+   Empty state helper
+   ============================================================ */
+function emptyState({ icon = 'inbox', title, text, action }) {
+  return `
+    <div class="empty">
+      <i data-lucide="${icon}"></i>
+      <div class="empty-title">${escapeHtml(title || '')}</div>
+      ${text ? `<div class="empty-text">${escapeHtml(text)}</div>` : ''}
+      ${action ? `<button class="btn btn-primary" data-empty-action>${escapeHtml(action.label)}</button>` : ''}
+    </div>
+  `;
+}
+
+__mp__.modules['js/ui.js'] = { toast, openModal, closeAllModals, confirmDialog, showLoading, hideLoading, emptyState };
+})();
+
+/* ===== js/forms/evento.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const upsertEvento = __mp__.modules['js/state.js'].upsertEvento;
+const findEvento = __mp__.modules['js/state.js'].findEvento;
+const allEventoIds = __mp__.modules['js/state.js'].allEventoIds;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const timestampUid = __mp__.modules['js/utils.js'].timestampUid;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const val = __mp__.modules['js/utils.js'].val;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+/* Form: crear / editar Evento */
+
+
+
+
+
+
+const TIPOS = [
+  ['mp', 'Mantención preventiva (MP)'],
+  ['reporte_servicio', 'Reporte de servicio'],
+  ['visita_tecnica', 'Visita técnica'],
+  ['cotizacion', 'Cotización'],
+  ['oc', 'Orden de compra'],
+  ['envio', 'Envío a servicio técnico'],
+  ['solicitud', 'Solicitud de trabajo'],
+  ['recepcion', 'Recepción'],
+  ['reparacion', 'Reparación']
+];
+
+const RESULTADOS = ['Si', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'FS', 'Baja', 'NU'];
+const ESTADOS = ['operativo', 'no operativo', 'fuera_servicio'];
+
+function openEventoForm(key, editId, onSaved) {
+  const eq = state.equipos.find(e => e.key === key);
+  const existing = editId ? findEvento(key, editId) : null;
+  const ev = existing || {
+    id: timestampUid(allEventoIds()),
+    tipo: 'mp',
+    fecha: todayISO(),
+    creadoEn: new Date().toISOString(),
+    resultado: '',
+    ejecutor: state.prefs.miUsuario || '',
+    estado: '',
+    empresa: '', empresaId: '', contactoId: '',
+    nEnvio: '', nCotizacion: '', nOC: '', folio: '', folioGuia: '',
+    observacion: '',
+    archivos: []
+  };
+
+  const footer = `
+    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button><span class="grow"></span>' : ''}
+    <button class="btn cancel" type="button">Cancelar</button>
+    <button class="btn btn-primary" id="btn-save" type="submit">Guardar</button>
+  `;
+
+  const modal = openModal({
+    title: editId ? 'Editar evento' : 'Nuevo evento',
+    size: 'lg',
+    body: bodyHTML(ev, eq),
+    footer
+  });
+  renderIcons();
+  bindFields(modal.modalEl, ev);
+
+  modal.footer.querySelector('.cancel')?.addEventListener('click', modal.close);
+  modal.footer.querySelector('#btn-save').addEventListener('click', () => {
+    collect(modal.modalEl, ev);
+    if (!validate(ev)) return;
+    upsertEvento(key, ev);
+    schedulePush();
+    toast({ message: editId ? 'Evento actualizado.' : 'Evento registrado.', kind: 'ok' });
+    modal.close();
+    onSaved?.();
+  });
+  modal.footer.querySelector('#btn-del')?.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar evento', message: '¿Eliminar este evento?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    /* Eliminación con deshacer */
+    const arr = state.eventos[key] || [];
+    const idx = arr.findIndex(x => x.id === ev.id);
+    if (idx < 0) return;
+    const removed = arr.splice(idx, 1)[0];
+    if (!arr.length) delete state.eventos[key];
+    schedulePush();
+    modal.close();
+    toast({
+      message: 'Evento eliminado.', kind: 'ok', durationMs: 6500,
+      action: { label: 'Deshacer', onClick: () => {
+        if (!state.eventos[key]) state.eventos[key] = [];
+        state.eventos[key].splice(idx, 0, removed);
+        schedulePush();
+        onSaved?.();
+      }}
+    });
+    onSaved?.();
+  });
+}
+
+function bodyHTML(ev, eq) {
+  return `
+    <div class="grid grid-2">
+      <div class="field">
+        <label class="field-label" for="ev-tipo">Tipo de evento</label>
+        <select class="select" id="ev-tipo">
+          ${TIPOS.map(([k, l]) => `<option value="${k}" ${ev.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-fecha">Fecha</label>
+        <input class="input" type="date" id="ev-fecha" value="${escapeHtml(ev.fecha)}" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-result">Resultado</label>
+        <select class="select" id="ev-result">
+          <option value="">—</option>
+          ${RESULTADOS.map(r => `<option value="${r}" ${ev.resultado === r ? 'selected' : ''}>${r}</option>`).join('')}
+        </select>
+        <span class="field-hint">Para MP: Si = OK, C1-C8 = causa, FS = fuera de servicio, Baja, NU = no ubicado.</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-ejec">Ejecutor</label>
+        <input class="input" id="ev-ejec" value="${escapeHtml(ev.ejecutor)}" placeholder="Nombre del técnico" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-estado">Estado del equipo tras este evento</label>
+        <select class="select" id="ev-estado">
+          <option value="">—</option>
+          ${ESTADOS.map(e => `<option value="${e}" ${ev.estado === e ? 'selected' : ''}>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-empresa">Empresa proveedora</label>
+        <input class="input" id="ev-empresa" value="${escapeHtml(ev.empresa)}" placeholder="Nombre o ID de empresa" />
+      </div>
+    </div>
+
+    <details class="mt-3">
+      <summary class="muted text-sm" style="cursor:pointer">Detalles administrativos (envío, cotización, OC, folios)</summary>
+      <div class="grid grid-2 mt-3">
+        <div class="field"><label class="field-label">N° envío</label><input class="input" id="ev-envio" value="${escapeHtml(ev.nEnvio)}" /></div>
+        <div class="field"><label class="field-label">N° cotización</label><input class="input" id="ev-cot" value="${escapeHtml(ev.nCotizacion)}" /></div>
+        <div class="field"><label class="field-label">N° OC</label><input class="input" id="ev-oc" value="${escapeHtml(ev.nOC)}" /></div>
+        <div class="field"><label class="field-label">Folio</label><input class="input" id="ev-folio" value="${escapeHtml(ev.folio)}" /></div>
+        <div class="field"><label class="field-label">Folio guía</label><input class="input" id="ev-folioguia" value="${escapeHtml(ev.folioGuia)}" /></div>
+      </div>
+    </details>
+
+    <div class="field mt-3">
+      <label class="field-label" for="ev-obs">Observación</label>
+      <textarea class="textarea" id="ev-obs" rows="5" placeholder="Describí qué se hizo, qué se encontró, qué pendientes quedan…">${escapeHtml(ev.observacion)}</textarea>
+      <span class="field-hint">Las líneas que empiecen con <code>PENDIENTES:</code> se sugerirán como tareas a crear.</span>
+    </div>
+  `;
+}
+
+function bindFields(modalEl, ev) { /* solo handlers de UI */ }
+
+function collect(modalEl, ev) {
+  ev.tipo = modalEl.querySelector('#ev-tipo').value;
+  ev.fecha = modalEl.querySelector('#ev-fecha').value;
+  ev.resultado = modalEl.querySelector('#ev-result').value || null;
+  ev.ejecutor = modalEl.querySelector('#ev-ejec').value.trim();
+  ev.estado = modalEl.querySelector('#ev-estado').value || null;
+  ev.empresa = modalEl.querySelector('#ev-empresa').value.trim();
+  ev.nEnvio = modalEl.querySelector('#ev-envio').value.trim();
+  ev.nCotizacion = modalEl.querySelector('#ev-cot').value.trim();
+  ev.nOC = modalEl.querySelector('#ev-oc').value.trim();
+  ev.folio = modalEl.querySelector('#ev-folio').value.trim();
+  ev.folioGuia = modalEl.querySelector('#ev-folioguia').value.trim();
+  ev.observacion = modalEl.querySelector('#ev-obs').value;
+}
+
+function validate(ev) {
+  if (!ev.tipo) { toast({ message: 'Falta el tipo de evento.', kind: 'warn' }); return false; }
+  if (!ev.fecha) { toast({ message: 'Falta la fecha.', kind: 'warn' }); return false; }
+  if (ev.tipo === 'mp' && !ev.resultado) { toast({ message: 'En una MP el resultado es obligatorio.', kind: 'warn' }); return false; }
+  return true;
+}
+
+__mp__.modules['js/forms/evento.js'] = { openEventoForm };
+})();
+
+/* ===== js/forms/seguimiento.js ===== */
+(function(){
+const uid = __mp__.modules['js/utils.js'].uid;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+/* Form: agregar Seguimiento (actualización) a un pendiente */
+
+
+
+
+const TIPOS = [
+  ['avance',     'Avance'],
+  ['delegacion', 'Delegación'],
+  ['recordatorio','Recordatorio'],
+  ['bloqueo',    'Bloqueo'],
+  ['cierre',     'Cierre']
+];
+
+function openSeguimientoForm(_keyUnused, _existingUnused, onSave) {
+  const footer = `
+    <button class="btn cancel" type="button">Cancelar</button>
+    <button class="btn btn-primary" id="s-save" type="submit">Agregar</button>
+  `;
+  const modal = openModal({
+    title: 'Nuevo seguimiento',
+    size: 'sm',
+    body: `
+      <div class="field mb-3">
+        <label class="field-label" for="s-tipo">Tipo</label>
+        <select class="select" id="s-tipo">${TIPOS.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+      </div>
+      <div class="field mb-3">
+        <label class="field-label" for="s-fecha">Fecha</label>
+        <input class="input" type="date" id="s-fecha" value="${todayISO()}" />
+      </div>
+      <div class="field mb-3">
+        <label class="field-label" for="s-contact">Contactado a</label>
+        <input class="input" id="s-contact" placeholder="Persona contactada (opcional)" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-texto">Detalle</label>
+        <textarea class="textarea" id="s-texto" rows="4" placeholder="Qué pasó, qué dijeron, próximos pasos…"></textarea>
+      </div>
+    `,
+    footer
+  });
+  renderIcons();
+
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#s-save').addEventListener('click', () => {
+    const seg = {
+      id: 's-' + uid(),
+      tipo: modal.modalEl.querySelector('#s-tipo').value,
+      fecha: modal.modalEl.querySelector('#s-fecha').value || todayISO(),
+      contactadoA: modal.modalEl.querySelector('#s-contact').value.trim(),
+      texto: modal.modalEl.querySelector('#s-texto').value.trim()
+    };
+    if (!seg.texto) { toast({ message: 'Escribí el detalle del seguimiento.', kind: 'warn' }); return; }
+    modal.close();
+    onSave?.(seg);
+  });
+}
+
+__mp__.modules['js/forms/seguimiento.js'] = { openSeguimientoForm };
+})();
+
+/* ===== js/forms/pendiente.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const upsertPendiente = __mp__.modules['js/state.js'].upsertPendiente;
+const findPendiente = __mp__.modules['js/state.js'].findPendiente;
+const allPendienteIds = __mp__.modules['js/state.js'].allPendienteIds;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const timestampUid = __mp__.modules['js/utils.js'].timestampUid;
+const uid = __mp__.modules['js/utils.js'].uid;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const openSeguimientoForm = __mp__.modules['js/forms/seguimiento.js'].openSeguimientoForm;
+/* Form: crear / editar Pendiente con tareas y seguimientos */
+
+
+
+
+
+
+
+const ESTADOS = ['creado', 'abierto', 'cerrado'];
+
+function openPendienteForm(key, editId, onSaved) {
+  const eq = state.equipos.find(e => e.key === key);
+  const existing = editId ? findPendiente(key, editId) : null;
+  const p = existing ? deepCopy(existing) : {
+    id: timestampUid(allPendienteIds()),
+    descripcion: '',
+    fecha: todayISO(),
+    fechaCompromiso: '',
+    proximoRecordatorio: '',
+    fechaCierre: '',
+    ejecutor: state.prefs.miUsuario || '',
+    estado: 'abierto',
+    tareas: [],
+    actualizaciones: [],
+    archivos: []
+  };
+
+  const footer = `
+    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button><span class="grow"></span>' : ''}
+    <button class="btn cancel" type="button">Cancelar</button>
+    <button class="btn btn-primary" id="btn-save" type="submit">Guardar</button>
+  `;
+
+  const modal = openModal({
+    title: editId ? 'Editar pendiente' : 'Nuevo pendiente',
+    size: 'lg',
+    body: bodyHTML(p, eq),
+    footer
+  });
+  renderIcons();
+  bindLocal(modal.modalEl, p, () => {
+    modal.bodyEl.innerHTML = bodyHTML(p, eq);
+    renderIcons();
+    bindLocal(modal.modalEl, p, () => {});
+  });
+
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#btn-save').addEventListener('click', () => {
+    collect(modal.modalEl, p);
+    if (!validate(p)) return;
+    upsertPendiente(key, p);
+    schedulePush();
+    toast({ message: editId ? 'Pendiente actualizado.' : 'Pendiente creado.', kind: 'ok' });
+    modal.close();
+    onSaved?.();
+  });
+  modal.footer.querySelector('#btn-del')?.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar pendiente', message: '¿Eliminar este pendiente y sus seguimientos?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    const arr = state.pendientes[key] || [];
+    const idx = arr.findIndex(x => x.id === p.id);
+    if (idx < 0) return;
+    const removed = arr.splice(idx, 1)[0];
+    if (!arr.length) delete state.pendientes[key];
+    savePersisted(); schedulePush();
+    modal.close();
+    toast({
+      message: 'Pendiente eliminado.', kind: 'ok', durationMs: 6500,
+      action: { label: 'Deshacer', onClick: () => {
+        if (!state.pendientes[key]) state.pendientes[key] = [];
+        state.pendientes[key].splice(idx, 0, removed);
+        savePersisted(); schedulePush();
+        onSaved?.();
+      }}
+    });
+    onSaved?.();
+  });
+}
+
+function bodyHTML(p, eq) {
+  return `
+    ${eq ? `<div class="muted text-sm mb-3">Para: ${escapeHtml(eq.equipo || '—')} · ${escapeHtml(eq.inv || eq.id || '')}</div>` : ''}
+
+    <div class="field mb-3">
+      <label class="field-label" for="p-desc">Descripción <span style="color:var(--c-danger)">*</span></label>
+      <textarea class="textarea" id="p-desc" rows="3" placeholder="Qué hay que hacer, decisión a tomar, lo que falta…">${escapeHtml(p.descripcion)}</textarea>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="field">
+        <label class="field-label" for="p-fcom">Fecha compromiso</label>
+        <input class="input" type="date" id="p-fcom" value="${escapeHtml(p.fechaCompromiso || '')}" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="p-frec">Próximo recordatorio</label>
+        <input class="input" type="date" id="p-frec" value="${escapeHtml(p.proximoRecordatorio || '')}" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="p-ejec">Responsable</label>
+        <input class="input" id="p-ejec" value="${escapeHtml(p.ejecutor || '')}" placeholder="Nombre" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="p-estado">Estado</label>
+        <select class="select" id="p-estado">
+          ${ESTADOS.map(e => `<option value="${e}" ${p.estado === e ? 'selected' : ''}>${e}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div class="row-between mb-2">
+        <h4>Tareas</h4>
+        <button class="btn btn-sm" id="t-add" type="button"><i data-lucide="plus"></i> Agregar tarea</button>
+      </div>
+      <div id="t-list">
+        ${(p.tareas || []).map((t, i) => taskRow(t, i)).join('') || '<p class="muted text-sm">Sin tareas.</p>'}
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div class="row-between mb-2">
+        <h4>Seguimientos</h4>
+        <button class="btn btn-sm" id="s-add" type="button"><i data-lucide="message-square-plus"></i> Agregar seguimiento</button>
+      </div>
+      <div id="s-list">
+        ${(p.actualizaciones || []).slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).map(a => seguimRow(a)).join('') || '<p class="muted text-sm">Sin seguimientos.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function taskRow(t, i) {
+  return `
+    <div class="list-item" data-tid="${escapeHtml(t.id)}">
+      <label class="check"><input type="checkbox" ${t.estado === 'cerrado' ? 'checked' : ''} class="t-check" /></label>
+      <input class="input grow" value="${escapeHtml(t.descripcion || '')}" data-t-desc placeholder="Descripción de la tarea" />
+      <button class="btn btn-sm btn-danger" data-t-del type="button"><i data-lucide="trash-2"></i></button>
+    </div>
+  `;
+}
+
+function seguimRow(a) {
+  return `
+    <div class="card mb-2" style="padding:10px">
+      <div class="row-between">
+        <div>
+          <span class="badge">${escapeHtml(a.tipo || 'avance')}</span>
+          <span class="text-xs muted">${fmtDate(a.fecha)} ${a.contactadoA ? '· ' + escapeHtml(a.contactadoA) : ''}</span>
+        </div>
+      </div>
+      ${a.texto ? `<div class="mt-1 text-sm">${escapeHtml(a.texto).replace(/\n/g,'<br>')}</div>` : ''}
+    </div>
+  `;
+}
+
+function bindLocal(modalEl, p, refresh) {
+  modalEl.querySelector('#t-add')?.addEventListener('click', () => {
+    p.tareas = p.tareas || [];
+    p.tareas.push({ id: 't-' + uid(), descripcion: '', estado: 'abierto' });
+    refresh();
+  });
+  modalEl.querySelectorAll('[data-tid]').forEach(el => {
+    const tid = el.dataset.tid;
+    const t = p.tareas.find(x => x.id === tid);
+    if (!t) return;
+    el.querySelector('.t-check')?.addEventListener('change', e => {
+      t.estado = e.target.checked ? 'cerrado' : 'abierto';
+    });
+    el.querySelector('[data-t-desc]')?.addEventListener('input', e => {
+      t.descripcion = e.target.value;
+    });
+    el.querySelector('[data-t-del]')?.addEventListener('click', () => {
+      p.tareas = p.tareas.filter(x => x.id !== tid);
+      refresh();
+    });
+  });
+  modalEl.querySelector('#s-add')?.addEventListener('click', () => {
+    openSeguimientoForm(null, null, (seg) => {
+      p.actualizaciones = p.actualizaciones || [];
+      p.actualizaciones.push(seg);
+      refresh();
+    });
+  });
+}
+
+function collect(modalEl, p) {
+  p.descripcion = modalEl.querySelector('#p-desc').value.trim();
+  p.fechaCompromiso = modalEl.querySelector('#p-fcom').value || '';
+  p.proximoRecordatorio = modalEl.querySelector('#p-frec').value || '';
+  p.ejecutor = modalEl.querySelector('#p-ejec').value.trim();
+  p.estado = modalEl.querySelector('#p-estado').value;
+  if (p.estado === 'cerrado' && !p.fechaCierre) p.fechaCierre = todayISO();
+  if (p.estado !== 'cerrado') p.fechaCierre = '';
+}
+
+function validate(p) {
+  if (!p.descripcion) { toast({ message: 'La descripción es obligatoria.', kind: 'warn' }); return false; }
+  return true;
+}
+
+function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+__mp__.modules['js/forms/pendiente.js'] = { openPendienteForm };
+})();
+
+/* ===== js/forms/equipo-detail.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const getEquipoEstadoExtended = __mp__.modules['js/data/excel.js'].getEquipoEstadoExtended;
+const openEventoForm = __mp__.modules['js/forms/evento.js'].openEventoForm;
+const openPendienteForm = __mp__.modules['js/forms/pendiente.js'].openPendienteForm;
+/* Modal "Detalle de equipo" con tabs Eventos / Pendientes / Info */
+
+
+
+
+
+
+
+
+const TIPO_LABEL = {
+  mp:'Mantención preventiva', reporte_servicio:'Reporte de servicio',
+  visita_tecnica:'Visita técnica', cotizacion:'Cotización', oc:'Orden de Compra',
+  envio:'Envío a Serv. Técnico', solicitud:'Solicitud de trabajo',
+  recepcion:'Recepción', reparacion:'Reparación'
+};
+
+function openEquipoDetail(key) {
+  const eq = state.equipos.find(e => e.key === key);
+  if (!eq) return;
+  const ext = getEquipoEstadoExtended(eq, state.eventos);
+
+  let activeTab = 'eventos';
+  let modal;
+
+  const renderBody = () => {
+    const eventos = (state.eventos[key] || []).slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    const pendientes = (state.pendientes[key] || []).slice();
+    const html = `
+      <div class="mb-3">
+        <div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <span class="badge"><span class="dot ${ext.estado === 'operativo' ? 'dot-ok' : ext.estado === 'no operativo' ? 'dot-danger' : 'dot'}"></span>${escapeHtml(ext.estado || '—')}</span>
+          ${eq.fam ? `<span class="badge badge-accent">${escapeHtml(eq.fam)}</span>` : ''}
+          ${eq.servicio ? `<span class="badge">${escapeHtml(eq.servicio)}</span>` : ''}
+        </div>
+        <div class="muted text-sm">${val(eq.marca)} · ${val(eq.modelo)} · Serie ${val(eq.serie)}</div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="${activeTab==='eventos'}" data-tab="eventos">Eventos (${eventos.length})</button>
+        <button class="tab" role="tab" aria-selected="${activeTab==='pendientes'}" data-tab="pendientes">Pendientes (${pendientes.length})</button>
+        <button class="tab" role="tab" aria-selected="${activeTab==='info'}" data-tab="info">Información</button>
+      </div>
+
+      <div class="tab-panel" id="tab-content">
+        ${activeTab === 'eventos' ? eventosPanel(key, eventos) : ''}
+        ${activeTab === 'pendientes' ? pendientesPanel(key, pendientes) : ''}
+        ${activeTab === 'info' ? infoPanel(eq) : ''}
+      </div>
+    `;
+    modal.bodyEl.innerHTML = html;
+    renderIcons();
+    bindTabs();
+    bindActions(key);
+  };
+
+  const bindTabs = () => {
+    modal.modalEl.querySelectorAll('.tab').forEach(t => {
+      t.addEventListener('click', () => {
+        activeTab = t.dataset.tab;
+        renderBody();
+      });
+    });
+  };
+
+  const bindActions = (key) => {
+    modal.modalEl.querySelector('#btn-new-ev')?.addEventListener('click', () => openEventoForm(key, null, renderBody));
+    modal.modalEl.querySelector('#btn-new-pe')?.addEventListener('click', () => openPendienteForm(key, null, renderBody));
+    modal.modalEl.querySelectorAll('[data-edit-ev]').forEach(el => el.addEventListener('click', () => openEventoForm(key, el.dataset.editEv, renderBody)));
+    modal.modalEl.querySelectorAll('[data-edit-pe]').forEach(el => el.addEventListener('click', () => openPendienteForm(key, el.dataset.editPe, renderBody)));
+  };
+
+  modal = openModal({
+    title: `${eq.equipo || '(sin nombre)'} · ${eq.inv || eq.id || ''}`,
+    size: 'lg',
+    body: '<div class="muted">Cargando…</div>'
+  });
+  renderBody();
+}
+
+function eventosPanel(key, eventos) {
+  if (!eventos.length) return `
+    <div class="empty">
+      <i data-lucide="history"></i>
+      <div class="empty-title">Sin eventos registrados</div>
+      <div class="empty-text">Registrá MP, reportes, cotizaciones, envíos a servicio técnico y reparaciones.</div>
+      <button class="btn btn-primary" id="btn-new-ev"><i data-lucide="plus"></i> Registrar evento</button>
+    </div>
+  `;
+  return `
+    <div class="row-between mb-3">
+      <span class="muted text-sm">${eventos.length} eventos</span>
+      <button class="btn btn-primary btn-sm" id="btn-new-ev"><i data-lucide="plus"></i> Nuevo evento</button>
+    </div>
+    <div class="col">
+      ${eventos.map(ev => `
+        <div class="card" style="padding:12px">
+          <div class="row-between">
+            <div>
+              <div class="semibold">${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</div>
+              <div class="text-xs muted">${fmtDate(ev.fecha)} ${ev.ejecutor ? '· ' + escapeHtml(ev.ejecutor) : ''} ${ev.resultado ? '· ' + escapeHtml(ev.resultado) : ''}</div>
+            </div>
+            <button class="btn btn-sm" data-edit-ev="${escapeHtml(ev.id)}"><i data-lucide="pencil"></i></button>
+          </div>
+          ${ev.observacion ? `<div class="mt-2 text-sm">${escapeHtml(ev.observacion).replace(/\n/g, '<br>')}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function pendientesPanel(key, pendientes) {
+  if (!pendientes.length) return `
+    <div class="empty">
+      <i data-lucide="check-square"></i>
+      <div class="empty-title">Sin pendientes</div>
+      <button class="btn btn-primary" id="btn-new-pe"><i data-lucide="plus"></i> Crear pendiente</button>
+    </div>
+  `;
+  return `
+    <div class="row-between mb-3">
+      <span class="muted text-sm">${pendientes.length} pendientes</span>
+      <button class="btn btn-primary btn-sm" id="btn-new-pe"><i data-lucide="plus"></i> Nuevo</button>
+    </div>
+    <div class="col">
+      ${pendientes.map(p => `
+        <div class="card" style="padding:12px">
+          <div class="row-between">
+            <div>
+              <div class="semibold">${escapeHtml(p.descripcion || '—')}</div>
+              <div class="text-xs muted">
+                ${p.estado || 'abierto'}
+                ${p.fechaCompromiso ? ' · vence ' + fmtDate(p.fechaCompromiso) : ''}
+                ${p.ejecutor ? ' · ' + escapeHtml(p.ejecutor) : ''}
+              </div>
+            </div>
+            <button class="btn btn-sm" data-edit-pe="${escapeHtml(p.id)}"><i data-lucide="pencil"></i></button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function infoPanel(eq) {
+  const rows = [
+    ['Familia', eq.fam], ['ID', eq.id], ['Carpeta', eq.carpeta], ['N° Inventario', eq.inv],
+    ['Servicio', eq.servicio], ['Unidad', eq.unidad], ['Ubicación', eq.ubicacion], ['Procedencia', eq.procedencia],
+    ['Marca', eq.marca], ['Modelo', eq.modelo], ['N° Serie', eq.serie], ['Año', eq.anio],
+    ['VUR', eq.vur], ['Clasificación', eq.clas], ['Frecuencia', eq.frecuencia]
+  ];
+  return `
+    <div class="grid grid-2">
+      ${rows.map(([k, v]) => `
+        <div>
+          <div class="text-xs muted">${escapeHtml(k)}</div>
+          <div>${val(v)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+__mp__.modules['js/forms/equipo-detail.js'] = { openEquipoDetail };
+})();
+
+/* ===== js/forms/gas-settings.js ===== */
+(function(){
+const gas = __mp__.modules['js/data/gas.js'].gas;
+const configureGas = __mp__.modules['js/data/gas.js'].configureGas;
+const pingGas = __mp__.modules['js/data/gas.js'].pingGas;
+const pushAll = __mp__.modules['js/data/gas.js'].pushAll;
+const pullAll = __mp__.modules['js/data/gas.js'].pullAll;
+const onGasStatus = __mp__.modules['js/data/gas.js'].onGasStatus;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const showLoading = __mp__.modules['js/ui.js'].showLoading;
+const hideLoading = __mp__.modules['js/ui.js'].hideLoading;
+/* Modal de configuración del backend Google Apps Script */
+
+
+
+
+
+function openGasSettings() {
+  const footer = `<button class="btn cancel">Cerrar</button>`;
+  const modal = openModal({
+    title: 'Sincronización con Google Sheets',
+    size: 'md',
+    body: render(),
+    footer
+  });
+  renderIcons();
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+
+  const refresh = () => { modal.bodyEl.innerHTML = render(); renderIcons(); bind(); };
+  const unsubscribe = onGasStatus(refresh);
+  modal.modalEl.addEventListener('remove', unsubscribe);
+
+  const bind = () => {
+    modal.modalEl.querySelector('#gs-save').addEventListener('click', () => {
+      configureGas({
+        url: modal.modalEl.querySelector('#gs-url').value,
+        autoSync: modal.modalEl.querySelector('#gs-auto').checked
+      });
+      toast({ message: 'Configuración guardada.', kind: 'ok' });
+      refresh();
+    });
+    modal.modalEl.querySelector('#gs-ping').addEventListener('click', async () => {
+      try {
+        showLoading('Probando conexión…');
+        await pingGas(modal.modalEl.querySelector('#gs-url').value);
+        hideLoading();
+        toast({ message: 'Backend responde OK.', kind: 'ok' });
+      } catch (err) {
+        hideLoading();
+        toast({ message: 'No respondió: ' + err.message, kind: 'danger' });
+      }
+    });
+    modal.modalEl.querySelector('#gs-push').addEventListener('click', async () => {
+      try {
+        showLoading('Subiendo todo al backend…');
+        await pushAll();
+        hideLoading();
+        toast({ message: 'Subida completa.', kind: 'ok' });
+      } catch (err) {
+        hideLoading();
+        toast({ message: 'Falló: ' + err.message, kind: 'danger' });
+      }
+    });
+    modal.modalEl.querySelector('#gs-pull').addEventListener('click', async () => {
+      const ok = await confirmDialog({
+        title: 'Reemplazar datos locales',
+        message: 'Esto reemplaza eventos / pendientes / agenda locales con lo que está en Sheets. ¿Continuar?',
+        danger: true, confirmLabel: 'Reemplazar'
+      });
+      if (!ok) return;
+      try {
+        showLoading('Bajando datos del backend…');
+        await pullAll();
+        hideLoading();
+        toast({ message: 'Datos actualizados desde Sheets.', kind: 'ok' });
+        location.reload();
+      } catch (err) {
+        hideLoading();
+        toast({ message: 'Falló: ' + err.message, kind: 'danger' });
+      }
+    });
+  };
+  bind();
+}
+
+function render() {
+  const status = gas.status === 'ok' ? 'Conectado' : gas.status === 'pending' ? 'Pendiente de sync' : gas.status === 'syncing' ? 'Sincronizando…' : gas.status === 'error' ? 'Error' : 'Desactivado';
+  const dotKind = gas.status === 'ok' ? 'dot-ok' : gas.status === 'error' ? 'dot-danger' : gas.status === 'syncing' ? 'dot-info dot-pulse' : 'dot';
+  return `
+    <div class="field mb-3">
+      <label class="field-label" for="gs-url">URL de Web App (Apps Script)</label>
+      <input class="input" id="gs-url" value="${escapeHtml(gas.url || '')}" placeholder="https://script.google.com/macros/s/AKfycb.../exec" />
+      <span class="field-hint">Implementación: <strong>Aplicación web</strong>, ejecutar como <strong>Yo</strong>, acceso: <strong>Cualquiera</strong> o "con cuenta Google".</span>
+    </div>
+    <div class="mb-3">
+      <label class="check"><input type="checkbox" id="gs-auto" ${gas.autoSync ? 'checked' : ''} /> Sincronizar automáticamente al guardar (recomendado)</label>
+    </div>
+    <div class="row mb-3" style="flex-wrap:wrap">
+      <button class="btn" id="gs-save"><i data-lucide="save"></i> Guardar</button>
+      <button class="btn" id="gs-ping"><i data-lucide="zap"></i> Probar conexión</button>
+      <button class="btn" id="gs-push"><i data-lucide="upload-cloud"></i> Subir ahora</button>
+      <button class="btn btn-danger" id="gs-pull"><i data-lucide="download-cloud"></i> Bajar y reemplazar</button>
+    </div>
+    <div class="card" style="padding:10px">
+      <div class="row"><span class="dot ${dotKind}"></span><span class="semibold">${escapeHtml(status)}</span></div>
+      <div class="text-xs muted mt-1">Último sync: ${gas.lastSync ? new Date(gas.lastSync).toLocaleString() : 'nunca'}</div>
+      ${gas.lastError ? `<div class="text-xs" style="color:var(--c-danger); margin-top:4px">${escapeHtml(gas.lastError)}</div>` : ''}
+    </div>
+  `;
+}
+
+__mp__.modules['js/forms/gas-settings.js'] = { openGasSettings };
+})();
+
+/* ===== js/router.js ===== */
+(function(){
+
+/* Router de vistas minimal — hash-based; persiste filtros via hash params */
+
+const routes = new Map();
+let currentView = null;
+
+function registerRoute(name, renderFn) {
+  routes.set(name, renderFn);
+}
+
+function navigate(name, params) {
+  const hash = '#' + name + (params ? '?' + new URLSearchParams(params).toString() : '');
+  if (location.hash !== hash) location.hash = hash;
+  else render();
+}
+
+function getCurrentView() { return currentView; }
+
+function getRouteParams() {
+  const h = location.hash.slice(1);
+  const q = h.indexOf('?');
+  if (q < 0) return {};
+  return Object.fromEntries(new URLSearchParams(h.slice(q + 1)));
+}
+
+function render() {
+  const h = location.hash.slice(1) || 'hoy';
+  const [name, query] = h.split('?');
+  const params = query ? Object.fromEntries(new URLSearchParams(query)) : {};
+  const fn = routes.get(name) || routes.get('hoy');
+  currentView = name;
+  /* Mark active sidebar item */
+  document.querySelectorAll('[data-route]').forEach(el => {
+    el.setAttribute('aria-current', el.dataset.route === name ? 'page' : 'false');
+  });
+  /* Render into content area */
+  const contentEl = document.getElementById('view-root');
+  if (contentEl) {
+    contentEl.innerHTML = '<div class="view"></div>';
+    try { fn(contentEl.firstElementChild, params); }
+    catch (err) {
+      console.error(err);
+      contentEl.firstElementChild.innerHTML = `<div class="empty"><div class="empty-title">Error al renderizar</div><div class="empty-text">${err.message}</div></div>`;
+    }
+  }
+  /* Mark title in header */
+  const titleEl = document.getElementById('header-title-text');
+  if (titleEl) titleEl.textContent = ROUTE_TITLES[name] || name;
+}
+
+const ROUTE_TITLES = {
+  hoy: 'Hoy',
+  equipos: 'Equipos',
+  pendientes: 'Pendientes',
+  verificacion: 'Verificación de carga',
+  agenda: 'Agenda',
+  historial: 'Historial'
+};
+
+function initRouter() {
+  window.addEventListener('hashchange', render);
+  render();
+}
+
+function refreshActiveView() { render(); }
+
+__mp__.modules['js/router.js'] = { registerRoute, navigate, getCurrentView, getRouteParams, initRouter, refreshActiveView };
+})();
+
+/* ===== js/views/hoy.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const addDaysISO = __mp__.modules['js/utils.js'].addDaysISO;
+const diffDays = __mp__.modules['js/utils.js'].diffDays;
+const val = __mp__.modules['js/utils.js'].val;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const fmtRelative = __mp__.modules['js/utils.js'].fmtRelative;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const toast = __mp__.modules['js/ui.js'].toast;
+const openEquipoDetail = __mp__.modules['js/forms/equipo-detail.js'].openEquipoDetail;
+const openPendienteForm = __mp__.modules['js/forms/pendiente.js'].openPendienteForm;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const navigate = __mp__.modules['js/router.js'].navigate;
+/* Vista: Hoy — dashboard de pendientes por urgencia */
+
+
+
+
+
+
+
+
+
+function flattenPendientes() {
+  const out = [];
+  Object.entries(state.pendientes).forEach(([key, arr]) => {
+    (arr || []).forEach(p => out.push({ key, p }));
+  });
+  return out;
+}
+
+function pendientesEnPeriodo(periodo) {
+  const today = todayISO();
+  const t = new Date(today + 'T00:00:00').getTime();
+  const ms = 86400000;
+  const all = flattenPendientes();
+  return all.filter(({ p }) => {
+    if (p.estado === 'cerrado') return false;
+    const due = p.fechaCompromiso || p.proximoRecordatorio || p.fecha;
+    if (!due) return false;
+    const d = (new Date(due + 'T00:00:00').getTime() - t) / ms;
+    if (periodo === 'vencido') return d < 0;
+    if (periodo === 'hoy')     return d === 0;
+    if (periodo === '7')       return d > 0 && d <= 7;
+    if (periodo === '30')      return d > 7 && d <= 30;
+    return false;
+  });
+}
+
+function renderHoy(root) {
+  const today = todayISO();
+  const todosAbiertos = flattenPendientes().filter(({ p }) => p.estado !== 'cerrado');
+  const vencidos = pendientesEnPeriodo('vencido');
+  const hoy      = pendientesEnPeriodo('hoy');
+  const prox7    = pendientesEnPeriodo('7');
+  const prox30   = pendientesEnPeriodo('30');
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>Hoy · ${fmtDate(today)}</h2>
+        <p class="muted">${todosAbiertos.length} pendientes abiertos · ${state.equipos.length} equipos</p>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="btn-new-pend"><i data-lucide="plus"></i> Nuevo pendiente</button>
+      </div>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      ${kpi('Vencidos',      vencidos.length, 'danger', 'alert-octagon')}
+      ${kpi('Para hoy',      hoy.length,      'warn',   'calendar-clock')}
+      ${kpi('Próximos 7 d',  prox7.length,    'info',   'calendar-days')}
+    </div>
+
+    ${section('Vencidos',  vencidos,  'danger',  'alert-octagon', today, true)}
+    ${section('Para hoy',  hoy,       'warn',    'calendar-clock',today, true)}
+    ${section('Próximos 7 días',  prox7,  'info', 'calendar-days', today, prox7.length > 0)}
+    ${section('Próximos 8–30 días', prox30, '',   'calendar', today, false)}
+  `;
+
+  renderIcons();
+  bindCardActions(root);
+  root.querySelector('#btn-new-pend')?.addEventListener('click', () => {
+    const key = state.equipos[0]?.key || null;
+    if (!key) { toast({ message: 'Cargá equipos primero para crear un pendiente.', kind: 'warn' }); return; }
+    openPendienteForm(key, null, () => navigate('hoy'));
+  });
+}
+
+function kpi(label, n, kind = '', icon = 'circle') {
+  return `
+    <div class="kpi ${kind ? 'kpi-' + kind : ''}">
+      <div class="row-between">
+        <div class="kpi-label">${escapeHtml(label)}</div>
+        <i data-lucide="${icon}" class="muted"></i>
+      </div>
+      <div class="kpi-value">${n}</div>
+    </div>
+  `;
+}
+
+function section(title, items, kind, icon, today, openDefault) {
+  if (!items.length) {
+    return `
+      <details class="section" ${openDefault ? 'open' : ''}>
+        <summary class="section-header">
+          <span class="row"><i data-lucide="${icon}" class="muted"></i> <h3>${escapeHtml(title)}</h3> <span class="badge">0</span></span>
+          <i data-lucide="chevron-down" class="muted"></i>
+        </summary>
+        <div class="section-body"><div class="empty"><div class="empty-text">Nada aquí. Buen trabajo.</div></div></div>
+      </details>
+    `;
+  }
+  const rows = items.map(({ key, p }) => itemHtml(key, p, today)).join('');
+  return `
+    <details class="section" ${openDefault ? 'open' : ''}>
+      <summary class="section-header">
+        <span class="row"><i data-lucide="${icon}" class="muted"></i> <h3>${escapeHtml(title)}</h3> <span class="badge ${kind === 'danger' ? 'badge-danger' : kind === 'warn' ? 'badge-warn' : ''}">${items.length}</span></span>
+        <i data-lucide="chevron-down" class="muted"></i>
+      </summary>
+      <div class="section-body" style="padding:0">
+        ${rows}
+      </div>
+    </details>
+  `;
+}
+
+function itemHtml(key, p, today) {
+  const eq = state.equipos.find(e => e.key === key);
+  const due = p.fechaCompromiso || p.proximoRecordatorio;
+  const rel = due ? fmtRelative(due) : '';
+  const dueClass = due && due < today ? 'badge-danger' : (due === today ? 'badge-warn' : 'badge');
+  return `
+    <div class="list-item" data-key="${escapeHtml(key)}" data-pid="${escapeHtml(p.id)}">
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(p.descripcion || '(sin descripción)')}</div>
+        <div class="item-meta">
+          ${eq ? `<a href="#" class="open-equipo">${escapeHtml(eq.equipo || '')}</a> · ${val(eq.inv || eq.id)}` : escapeHtml(key)}
+          ${p.ejecutor ? ' · ' + escapeHtml(p.ejecutor) : ''}
+        </div>
+      </div>
+      <div class="item-actions">
+        ${due ? `<span class="badge ${dueClass}" title="${escapeHtml(fmtDate(due))}">${escapeHtml(rel || fmtDate(due))}</span>` : ''}
+        <button class="btn btn-sm act-snooze" title="Posponer 7 días"><i data-lucide="clock"></i></button>
+        <button class="btn btn-sm act-edit" title="Editar"><i data-lucide="pencil"></i></button>
+        <button class="btn btn-sm act-close" title="Marcar cerrado"><i data-lucide="check"></i></button>
+      </div>
+    </div>
+  `;
+}
+
+function bindCardActions(root) {
+  root.querySelectorAll('.list-item').forEach(el => {
+    const key = el.dataset.key, pid = el.dataset.pid;
+    el.querySelector('.open-equipo')?.addEventListener('click', e => { e.preventDefault(); openEquipoDetail(key); });
+    el.querySelector('.act-edit')?.addEventListener('click', e => { e.stopPropagation(); openPendienteForm(key, pid, () => location.reload()); });
+    el.querySelector('.act-snooze')?.addEventListener('click', e => {
+      e.stopPropagation();
+      const arr = st.pendientes[key] || [];
+      const p = arr.find(x => x.id === pid);
+      if (!p) return;
+      const prev = p.proximoRecordatorio || p.fechaCompromiso || todayISO();
+      p.proximoRecordatorio = addDaysISO(prev, 7);
+      savePersisted(); schedulePush();
+      toast({
+        message: 'Pospuesto 7 días.',
+        kind: 'ok',
+        action: { label: 'Deshacer', onClick: () => {
+          p.proximoRecordatorio = prev === addDaysISO(prev, 7) ? '' : prev;
+          savePersisted(); schedulePush();
+          renderHoy(root.parentElement?.firstElementChild || root);
+        }}
+      });
+      renderHoy(root);
+    });
+    el.querySelector('.act-close')?.addEventListener('click', e => {
+      e.stopPropagation();
+      const arr = st.pendientes[key] || [];
+      const p = arr.find(x => x.id === pid);
+      if (!p) return;
+      const prevEstado = p.estado;
+      const prevCierre = p.fechaCierre;
+      p.estado = 'cerrado';
+      p.fechaCierre = todayISO();
+      savePersisted(); schedulePush();
+      toast({
+        message: 'Pendiente cerrado.',
+        kind: 'ok',
+        action: { label: 'Deshacer', onClick: () => {
+          p.estado = prevEstado; p.fechaCierre = prevCierre;
+          savePersisted(); schedulePush();
+          renderHoy(root);
+        }}
+      });
+      renderHoy(root);
+    });
+  });
+}
+
+__mp__.modules['js/views/hoy.js'] = { renderHoy };
+})();
+
+/* ===== js/views/equipos.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const subscribe = __mp__.modules['js/state.js'].subscribe;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const debounce = __mp__.modules['js/utils.js'].debounce;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const getEquipoEstadoExtended = __mp__.modules['js/data/excel.js'].getEquipoEstadoExtended;
+const navigate = __mp__.modules['js/router.js'].navigate;
+const getRouteParams = __mp__.modules['js/router.js'].getRouteParams;
+const openEquipoDetail = __mp__.modules['js/forms/equipo-detail.js'].openEquipoDetail;
+/* Vista: Equipos
+   - Búsqueda libre + filtros (Familia, Servicio, Ubicación, Estado, Resultado)
+   - Tabla densa en desktop / tarjetas en móvil
+   - Click en fila → openEquipoDetail
+   - Persistencia de filtros en hash params
+*/
+
+
+
+
+
+
+
+
+const ESTADO_LABEL = {
+  operativo: 'Operativo',
+  'no operativo': 'No operativo',
+  fuera_servicio: 'Fuera de servicio',
+  baja: 'Dado de baja',
+  no_ubicado: 'No ubicado',
+  no_registrado: 'Sin registrar'
+};
+const ESTADO_DOT = {
+  operativo: 'dot-ok',
+  'no operativo': 'dot-danger',
+  fuera_servicio: 'dot-warn',
+  baja: 'dot',
+  no_ubicado: 'dot-warn',
+  no_registrado: 'dot'
+};
+
+function uniqueValues(field) {
+  const s = new Set();
+  state.equipos.forEach(eq => { if (eq[field]) s.add(eq[field]); });
+  return [...s].sort();
+}
+
+function applyFilters(arr, f) {
+  return arr.filter(eq => {
+    if (eq.empty) return false;
+    if (f.q) {
+      const hay = (eq.equipo + ' ' + eq.inv + ' ' + eq.id + ' ' + eq.marca + ' ' + eq.modelo + ' ' + eq.serie + ' ' + eq.servicio).toLowerCase();
+      if (!hay.includes(f.q.toLowerCase())) return false;
+    }
+    if (f.fam && eq.fam !== f.fam) return false;
+    if (f.servicio && eq.servicio !== f.servicio) return false;
+    if (f.ubicacion && eq.ubicacion !== f.ubicacion) return false;
+    if (f.estado) {
+      const ext = getEquipoEstadoExtended(eq, state.eventos);
+      if (ext.estado !== f.estado) return false;
+    }
+    return true;
+  });
+}
+
+function renderEquipos(root, params = {}) {
+  const filters = {
+    q: params.q || '',
+    fam: params.fam || '',
+    servicio: params.servicio || '',
+    ubicacion: params.ubicacion || '',
+    estado: params.estado || ''
+  };
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>Buscar equipos</h2>
+        <p class="muted">${state.equipos.length} equipos en el inventario · ${state.fileName || 'sin archivo cargado'}</p>
+      </div>
+    </div>
+
+    ${state.equipos.length === 0 ? emptyState({
+      icon: 'file-spreadsheet',
+      title: 'No hay datos cargados',
+      text: 'Cargá el archivo Programacion_MP_2026.xlsm desde el botón superior para empezar.'
+    }) : `
+      <div class="filter-bar">
+        <div class="search-input grow">
+          <i data-lucide="search"></i>
+          <input class="input" id="f-q" placeholder="Buscar por equipo, inventario, marca, modelo, serie…" value="${escapeHtml(filters.q)}" />
+        </div>
+        <select class="select" id="f-fam">
+          <option value="">Familia (todas)</option>
+          ${uniqueValues('fam').map(v => `<option value="${escapeHtml(v)}" ${filters.fam===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}
+        </select>
+        <select class="select" id="f-srv">
+          <option value="">Servicio (todos)</option>
+          ${uniqueValues('servicio').map(v => `<option value="${escapeHtml(v)}" ${filters.servicio===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}
+        </select>
+        <select class="select" id="f-ubi">
+          <option value="">Ubicación (todas)</option>
+          ${uniqueValues('ubicacion').map(v => `<option value="${escapeHtml(v)}" ${filters.ubicacion===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}
+        </select>
+        <select class="select" id="f-est">
+          <option value="">Estado (todos)</option>
+          ${Object.entries(ESTADO_LABEL).map(([k,v])=>`<option value="${k}" ${filters.estado===k?'selected':''}>${v}</option>`).join('')}
+        </select>
+        <button class="filter-clear btn-ghost btn-sm" id="f-clear">Limpiar</button>
+      </div>
+
+      <div id="equipos-results"></div>
+    `}
+  `;
+  renderIcons();
+
+  if (state.equipos.length === 0) return;
+
+  const resultsEl = root.querySelector('#equipos-results');
+  const renderResults = () => {
+    const list = applyFilters(state.equipos, filters);
+    resultsEl.innerHTML = list.length === 0
+      ? emptyState({ icon: 'search-x', title: 'Sin coincidencias', text: 'Ajustá los filtros o limpia la búsqueda.' })
+      : tableHtml(list) + cardsHtml(list);
+    renderIcons();
+    bindRowClicks(resultsEl);
+  };
+  renderResults();
+
+  const debouncedFilter = debounce(() => {
+    navigate('equipos', filters);
+  }, 200);
+
+  const onChange = () => {
+    filters.q = root.querySelector('#f-q').value;
+    filters.fam = root.querySelector('#f-fam').value;
+    filters.servicio = root.querySelector('#f-srv').value;
+    filters.ubicacion = root.querySelector('#f-ubi').value;
+    filters.estado = root.querySelector('#f-est').value;
+    renderResults();
+    debouncedFilter();
+  };
+  root.querySelector('#f-q').addEventListener('input', onChange);
+  ['f-fam','f-srv','f-ubi','f-est'].forEach(id => root.querySelector('#'+id).addEventListener('change', onChange));
+  root.querySelector('#f-clear').addEventListener('click', () => {
+    Object.keys(filters).forEach(k => filters[k] = '');
+    navigate('equipos', {});
+  });
+}
+
+function tableHtml(list) {
+  const rows = list.map(eq => rowHtml(eq)).join('');
+  return `
+    <div class="table-wrap equipos-table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Familia</th>
+            <th>ID / Inv.</th>
+            <th>Equipo</th>
+            <th>Servicio</th>
+            <th>Ubicación</th>
+            <th>Estado</th>
+            <th class="text-xs muted">Últ. resultado</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function rowHtml(eq) {
+  const ext = getEquipoEstadoExtended(eq, state.eventos);
+  const dot = ESTADO_DOT[ext.estado] || 'dot';
+  const lbl = ESTADO_LABEL[ext.estado] || ext.estado;
+  const lastRes = ext.codigo || '—';
+  return `
+    <tr class="equipo-row is-selectable" data-key="${escapeHtml(eq.key)}">
+      <td>${val(eq.fam)}</td>
+      <td class="equipo-id">${val(eq.inv || eq.id)}</td>
+      <td>${val(eq.equipo)}</td>
+      <td>${val(eq.servicio)}</td>
+      <td>${val(eq.ubicacion)}</td>
+      <td><span class="est"><span class="dot ${dot}"></span>${escapeHtml(lbl)}</span></td>
+      <td><code>${escapeHtml(lastRes)}</code></td>
+    </tr>
+  `;
+}
+
+function cardsHtml(list) {
+  return `<div class="equipo-card-list">` + list.map(eq => {
+    const ext = getEquipoEstadoExtended(eq, state.eventos);
+    return `
+      <div class="equipo-card" data-key="${escapeHtml(eq.key)}">
+        <div class="ec-title">${val(eq.equipo)}</div>
+        <div class="ec-meta">${val(eq.inv || eq.id)} · ${val(eq.fam)} · ${val(eq.servicio)}</div>
+        <div class="ec-foot">
+          <span class="badge"><span class="dot ${ESTADO_DOT[ext.estado] || 'dot'}"></span>${escapeHtml(ESTADO_LABEL[ext.estado] || ext.estado)}</span>
+          <span class="badge badge-mono">${escapeHtml(ext.codigo || '—')}</span>
+        </div>
+      </div>
+    `;
+  }).join('') + '</div>';
+}
+
+function bindRowClicks(host) {
+  host.querySelectorAll('[data-key]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.key;
+      openEquipoDetail(key);
+    });
+  });
+}
+
+__mp__.modules['js/views/equipos.js'] = { renderEquipos };
+})();
+
+/* ===== js/views/pendientes.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const fmtRelative = __mp__.modules['js/utils.js'].fmtRelative;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const openPendienteForm = __mp__.modules['js/forms/pendiente.js'].openPendienteForm;
+const openEquipoDetail = __mp__.modules['js/forms/equipo-detail.js'].openEquipoDetail;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const navigate = __mp__.modules['js/router.js'].navigate;
+const refreshActiveView = __mp__.modules['js/router.js'].refreshActiveView;
+/* Vista: Pendientes — lista completa agrupada por estado */
+
+
+
+
+
+
+
+
+
+function flatten() {
+  const out = [];
+  Object.entries(state.pendientes).forEach(([key, arr]) => (arr || []).forEach(p => out.push({ key, p })));
+  return out;
+}
+
+function renderPendientes(root, params = {}) {
+  const q = params.q || '';
+  const estado = params.estado || ''; // '', creado, abierto, cerrado
+  const responsable = params.resp || '';
+  let all = flatten();
+  if (q) {
+    const ql = q.toLowerCase();
+    all = all.filter(({ p }) => (p.descripcion || '').toLowerCase().includes(ql) || (p.ejecutor || '').toLowerCase().includes(ql));
+  }
+  if (responsable) all = all.filter(({ p }) => p.ejecutor === responsable);
+
+  const responsables = [...new Set(all.map(x => x.p.ejecutor).filter(Boolean))].sort();
+  const buckets = {
+    abierto: all.filter(x => x.p.estado === 'abierto' || !x.p.estado),
+    creado:  all.filter(x => x.p.estado === 'creado'),
+    cerrado: all.filter(x => x.p.estado === 'cerrado')
+  };
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>Pendientes</h2>
+        <p class="muted">${all.length} pendientes</p>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="btn-new"><i data-lucide="plus"></i> Nuevo</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="search-input grow">
+        <i data-lucide="search"></i>
+        <input class="input" id="f-q" placeholder="Buscar descripción o responsable…" value="${escapeHtml(q)}" />
+      </div>
+      <select class="select" id="f-estado">
+        <option value="">Estado (todos)</option>
+        <option value="abierto" ${estado==='abierto'?'selected':''}>Abierto</option>
+        <option value="creado"  ${estado==='creado' ?'selected':''}>Creado</option>
+        <option value="cerrado" ${estado==='cerrado'?'selected':''}>Cerrado</option>
+      </select>
+      <select class="select" id="f-resp">
+        <option value="">Responsable (todos)</option>
+        ${responsables.map(r => `<option value="${escapeHtml(r)}" ${r===responsable?'selected':''}>${escapeHtml(r)}</option>`).join('')}
+      </select>
+      <button class="filter-clear btn-ghost btn-sm" id="f-clear">Limpiar</button>
+    </div>
+
+    ${all.length === 0 ? emptyState({
+      icon: 'check-square',
+      title: 'No hay pendientes',
+      text: 'Creá uno desde un equipo o usando el botón "Nuevo".'
+    }) : `
+      ${(!estado || estado === 'abierto') ? bucketSection('Abiertos', buckets.abierto, 'warn', 'circle-dot', true) : ''}
+      ${(!estado || estado === 'creado')  ? bucketSection('Por iniciar', buckets.creado, 'info', 'inbox', false) : ''}
+      ${(!estado || estado === 'cerrado') ? bucketSection('Cerrados', buckets.cerrado, '', 'check-circle-2', false) : ''}
+    `}
+  `;
+  renderIcons();
+  bindUI(root);
+}
+
+function bucketSection(title, items, kind, icon, openDefault) {
+  if (!items.length) return '';
+  const today = todayISO();
+  const rows = items.map(({ key, p }) => itemHtml(key, p, today)).join('');
+  return `
+    <details class="section" ${openDefault ? 'open' : ''}>
+      <summary class="section-header">
+        <span class="row"><i data-lucide="${icon}" class="muted"></i> <h3>${escapeHtml(title)}</h3> <span class="badge ${kind === 'warn' ? 'badge-warn' : kind === 'info' ? 'badge-accent' : ''}">${items.length}</span></span>
+        <i data-lucide="chevron-down" class="muted"></i>
+      </summary>
+      <div class="section-body" style="padding:0">${rows}</div>
+    </details>
+  `;
+}
+
+function itemHtml(key, p, today) {
+  const eq = state.equipos.find(e => e.key === key);
+  const due = p.fechaCompromiso;
+  const rec = p.proximoRecordatorio;
+  const overdue = due && due < today && p.estado !== 'cerrado';
+  const tareaPend = (p.tareas || []).filter(t => t.estado !== 'cerrado').length;
+  return `
+    <div class="list-item" data-key="${escapeHtml(key)}" data-pid="${escapeHtml(p.id)}">
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(p.descripcion || '(sin descripción)')}</div>
+        <div class="item-meta">
+          ${eq ? `<a href="#" class="open-equipo">${escapeHtml(eq.equipo || '')}</a> · ${val(eq.inv || eq.id)} · ${escapeHtml(eq.servicio || '')}` : escapeHtml(key)}
+          ${p.ejecutor ? ' · ' + escapeHtml(p.ejecutor) : ''}
+          ${tareaPend ? ` · <span class="badge">${tareaPend} tareas pend.</span>` : ''}
+        </div>
+      </div>
+      <div class="item-actions">
+        ${due ? `<span class="badge ${overdue ? 'badge-danger' : 'badge'}" title="Vence ${escapeHtml(fmtDate(due))}">⏱ ${escapeHtml(fmtRelative(due))}</span>` : ''}
+        <button class="btn btn-sm act-edit" title="Editar"><i data-lucide="pencil"></i></button>
+        <button class="btn btn-sm act-delete btn-danger" title="Eliminar"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>
+  `;
+}
+
+function bindUI(root) {
+  const sync = () => {
+    const params = {
+      q: root.querySelector('#f-q').value,
+      estado: root.querySelector('#f-estado').value,
+      resp: root.querySelector('#f-resp').value
+    };
+    navigate('pendientes', params);
+  };
+  root.querySelector('#f-q').addEventListener('input', sync);
+  root.querySelector('#f-estado').addEventListener('change', sync);
+  root.querySelector('#f-resp').addEventListener('change', sync);
+  root.querySelector('#f-clear').addEventListener('click', () => navigate('pendientes', {}));
+  root.querySelector('#btn-new')?.addEventListener('click', () => {
+    const key = state.equipos[0]?.key;
+    if (!key) { toast({ message: 'Cargá equipos primero.', kind: 'warn' }); return; }
+    openPendienteForm(key, null, refreshActiveView);
+  });
+
+  root.querySelectorAll('.list-item').forEach(el => {
+    const key = el.dataset.key, pid = el.dataset.pid;
+    el.querySelector('.open-equipo')?.addEventListener('click', e => { e.preventDefault(); openEquipoDetail(key); });
+    el.querySelector('.act-edit')?.addEventListener('click', () => openPendienteForm(key, pid, refreshActiveView));
+    el.querySelector('.act-delete')?.addEventListener('click', async () => {
+      const arr = state.pendientes[key] || [];
+      const idx = arr.findIndex(x => x.id === pid);
+      if (idx < 0) return;
+      const removed = arr.splice(idx, 1)[0];
+      if (!arr.length) delete state.pendientes[key];
+      savePersisted(); schedulePush();
+      refreshActiveView();
+      toast({
+        message: 'Pendiente eliminado.',
+        kind: 'ok',
+        durationMs: 6500,
+        action: { label: 'Deshacer', onClick: () => {
+          if (!state.pendientes[key]) state.pendientes[key] = [];
+          state.pendientes[key].splice(idx, 0, removed);
+          savePersisted(); schedulePush();
+          refreshActiveView();
+        }}
+      });
+    });
+  });
+}
+
+__mp__.modules['js/views/pendientes.js'] = { renderPendientes };
+})();
+
+/* ===== js/views/verificacion.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const saveSyncMarked = __mp__.modules['js/state.js'].saveSyncMarked;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const toast = __mp__.modules['js/ui.js'].toast;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const refreshActiveView = __mp__.modules['js/router.js'].refreshActiveView;
+/* Vista: Verificación de carga
+   - Integridad del Excel: duplicados, parciales, headers que faltan
+   - Discrepancias entre app y archivo (eventos faltantes/distintos)
+   - Permite marcar discrepancias como sincronizadas
+*/
+
+
+
+
+
+
+
+const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function computeIssues() {
+  const issues = { faltaArchivo: [], distinto: [], soloArchivo: [] };
+  state.equipos.forEach(eq => {
+    if (eq.empty) return;
+    const userEvs = state.eventos[eq.key] || [];
+    /* Por cada evento de MP del usuario, ver si está en regRes del archivo */
+    userEvs.forEach(ev => {
+      if (ev.tipo !== 'mp' || !ev.fecha || !ev.resultado) return;
+      const mes = parseInt(ev.fecha.slice(5, 7), 10) - 1;
+      if (mes < 0 || mes > 11) return;
+      const fileVal = eq.regRes[mes];
+      const marker = `${eq.key}|${mes}|${ev.resultado}`;
+      if (state.syncMarked.has(marker)) return;
+      if (!fileVal) issues.faltaArchivo.push({ eq, ev, mes, marker });
+      else if (fileVal !== ev.resultado) issues.distinto.push({ eq, ev, mes, fileVal, marker });
+    });
+    /* Y al revés: regRes existente sin evento del usuario */
+    eq.regRes.forEach((res, mes) => {
+      if (!res) return;
+      const tiene = userEvs.some(ev => ev.tipo === 'mp' && ev.fecha && parseInt(ev.fecha.slice(5,7),10)-1 === mes);
+      if (!tiene) {
+        const marker = `solo|${eq.key}|${mes}|${res}`;
+        if (state.syncMarked.has(marker)) return;
+        issues.soloArchivo.push({ eq, mes, fileVal: res, marker });
+      }
+    });
+  });
+  return issues;
+}
+
+function renderVerificacion(root) {
+  if (!state.loaded) {
+    root.innerHTML = emptyState({
+      icon: 'file-spreadsheet',
+      title: 'Sin archivo cargado',
+      text: 'Cargá Programacion_MP_2026.xlsm para ver el reporte de verificación.'
+    });
+    renderIcons();
+    return;
+  }
+  const v = state.verif || {};
+  const issues = computeIssues();
+  const issuesCount = issues.faltaArchivo.length + issues.distinto.length;
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>Verificación de carga</h2>
+        <p class="muted">${escapeHtml(state.fileName || '')} · cargado ${state.loadedAt ? fmtDate(state.loadedAt.slice(0,10)) : '—'}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      ${kpi('Equipos válidos', v.validos || 0)}
+      ${kpi('Familias', (v.familias || []).length)}
+      ${kpi('Filas registro', v.regRows || 0)}
+    </div>
+
+    ${(v.headerWarnings && v.headerWarnings.length) ? `
+      <div class="section">
+        <div class="section-header"><span class="row"><i data-lucide="alert-triangle" class="muted"></i> <h3>Encabezados con problemas</h3> <span class="badge badge-warn">${v.headerWarnings.length}</span></span></div>
+        <div class="section-body"><ul>${v.headerWarnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>
+      </div>
+    ` : ''}
+
+    ${(v.duplicados && v.duplicados.length) ? `
+      <details class="section" open>
+        <summary class="section-header"><span class="row"><i data-lucide="copy" class="muted"></i> <h3>Inventarios duplicados</h3> <span class="badge badge-warn">${v.duplicados.length}</span></span><i data-lucide="chevron-down" class="muted"></i></summary>
+        <div class="section-body">
+          <div class="table-wrap"><table class="table"><thead><tr><th>Fila</th><th>Inventario</th><th>Equipo</th></tr></thead>
+          <tbody>${v.duplicados.map(d => `<tr><td>${d.rowIndex}</td><td><code>${escapeHtml(d.key.replace(/^inv:/, ''))}</code></td><td>${val(d.equipo)}</td></tr>`).join('')}</tbody></table></div>
+        </div>
+      </details>
+    ` : ''}
+
+    ${(v.parciales && v.parciales.length) ? `
+      <details class="section">
+        <summary class="section-header"><span class="row"><i data-lucide="circle-slash" class="muted"></i> <h3>Filas parciales</h3> <span class="badge">${v.parciales.length}</span></span><i data-lucide="chevron-down" class="muted"></i></summary>
+        <div class="section-body">
+          <div class="table-wrap"><table class="table"><thead><tr><th>Fila</th><th>Falta</th></tr></thead>
+          <tbody>${v.parciales.map(p => `<tr><td>${p.rowIndex}</td><td>${escapeHtml(p.falta)}</td></tr>`).join('')}</tbody></table></div>
+        </div>
+      </details>
+    ` : ''}
+
+    <details class="section" ${issuesCount ? 'open' : ''}>
+      <summary class="section-header"><span class="row"><i data-lucide="git-compare" class="muted"></i> <h3>Discrepancias archivo ↔ app</h3> <span class="badge ${issuesCount ? 'badge-warn' : 'badge-ok'}">${issuesCount}</span></span><i data-lucide="chevron-down" class="muted"></i></summary>
+      <div class="section-body">
+        ${issuesCount === 0
+          ? '<p class="muted">Sin discrepancias por revisar.</p>'
+          : `
+            ${issues.faltaArchivo.length ? `
+              <h4 class="mb-2">Falta en archivo (${issues.faltaArchivo.length})</h4>
+              <p class="muted text-sm mb-3">La app tiene un MP registrado que el archivo Excel no refleja. Revisá el origen.</p>
+              <div class="col">${issues.faltaArchivo.map(i => issueRow(i, 'falta')).join('')}</div>
+            ` : ''}
+            ${issues.distinto.length ? `
+              <h4 class="mb-2 mt-4">Resultado distinto (${issues.distinto.length})</h4>
+              <p class="muted text-sm mb-3">El archivo y la app tienen resultados diferentes para el mismo mes.</p>
+              <div class="col">${issues.distinto.map(i => issueRow(i, 'distinto')).join('')}</div>
+            ` : ''}
+          `
+        }
+      </div>
+    </details>
+
+    ${state.syncMarked.size ? `
+      <div class="row-between mt-4">
+        <span class="muted text-sm">${state.syncMarked.size} discrepancias marcadas como resueltas</span>
+        <button class="btn btn-sm" id="btn-unmark">Mostrar todas de nuevo</button>
+      </div>
+    ` : ''}
+  `;
+  renderIcons();
+
+  root.querySelectorAll('[data-marker]').forEach(el => {
+    el.addEventListener('click', () => {
+      const marker = el.dataset.marker;
+      state.syncMarked.add(marker);
+      saveSyncMarked();
+      schedulePush();
+      toast({
+        message: 'Marcada como resuelta. Se oculta de la lista.',
+        kind: 'ok',
+        action: { label: 'Deshacer', onClick: () => {
+          state.syncMarked.delete(marker); saveSyncMarked(); schedulePush(); refreshActiveView();
+        }}
+      });
+      refreshActiveView();
+    });
+  });
+  root.querySelector('#btn-unmark')?.addEventListener('click', () => {
+    state.syncMarked.clear(); saveSyncMarked(); schedulePush(); refreshActiveView();
+  });
+}
+
+function kpi(label, n) {
+  return `<div class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${n}</div></div>`;
+}
+
+function issueRow(i, kind) {
+  const mes = MES[i.mes];
+  return `
+    <div class="list-item">
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(i.eq.equipo || '(sin nombre)')} · <span class="equipo-id">${escapeHtml(i.eq.inv || i.eq.id || '')}</span></div>
+        <div class="item-meta">
+          ${kind === 'falta'
+            ? `App: <code>${escapeHtml(i.ev.resultado)}</code> en ${escapeHtml(mes)} · Archivo: <em>vacío</em>`
+            : `App: <code>${escapeHtml(i.ev.resultado)}</code> · Archivo: <code>${escapeHtml(i.fileVal)}</code> · ${escapeHtml(mes)}`}
+        </div>
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-sm" data-marker="${escapeHtml(i.marker)}">Marcar resuelto</button>
+      </div>
+    </div>
+  `;
+}
+
+__mp__.modules['js/views/verificacion.js'] = { renderVerificacion };
+})();
+
+/* ===== js/views/agenda.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const savePersisted = __mp__.modules['js/state.js'].savePersisted;
+const ensureAgendaShape = __mp__.modules['js/state.js'].ensureAgendaShape;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const uid = __mp__.modules['js/utils.js'].uid;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const navigate = __mp__.modules['js/router.js'].navigate;
+const refreshActiveView = __mp__.modules['js/router.js'].refreshActiveView;
+/* Vista: Agenda — Servicios / Centros de Responsabilidad / Directorio / Empresas */
+
+
+
+
+
+
+
+function renderAgenda(root, params = {}) {
+  ensureAgendaShape();
+  const tab = params.tab || 'servicios';
+  const q = params.q || '';
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>Agenda</h2>
+        <p class="muted">Contactos por servicio, centros de responsabilidad, directorio externo y proveedores.</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      ${tabBtn('servicios', 'Servicios', tab, Object.keys(state.agenda.servicios).length)}
+      ${tabBtn('centros', 'Centros', tab, state.agenda.centros.length)}
+      ${tabBtn('directorio', 'Directorio', tab, state.agenda.directorio.length)}
+      ${tabBtn('empresas', 'Empresas', tab, state.agenda.empresas.length)}
+    </div>
+
+    <div class="filter-bar">
+      <div class="search-input grow">
+        <i data-lucide="search"></i>
+        <input class="input" id="ag-q" placeholder="Buscar…" value="${escapeHtml(q)}" />
+      </div>
+      <button class="btn btn-primary" id="ag-add"><i data-lucide="plus"></i> Agregar</button>
+    </div>
+
+    <div id="ag-body"></div>
+  `;
+  renderIcons();
+
+  root.querySelectorAll('[data-tab]').forEach(t => t.addEventListener('click', () => navigate('agenda', { tab: t.dataset.tab })));
+  root.querySelector('#ag-q').addEventListener('input', e => {
+    const v = e.target.value;
+    clearTimeout(window.__agq);
+    window.__agq = setTimeout(() => navigate('agenda', { tab, q: v }), 200);
+  });
+  root.querySelector('#ag-add').addEventListener('click', () => addForm(tab));
+
+  renderBody(root.querySelector('#ag-body'), tab, q);
+}
+
+function tabBtn(key, label, current, count) {
+  return `<button class="tab" role="tab" data-tab="${key}" aria-selected="${current === key}">${escapeHtml(label)} <span class="badge" style="margin-left:6px">${count}</span></button>`;
+}
+
+function renderBody(el, tab, q) {
+  if (tab === 'servicios') renderServicios(el, q);
+  else if (tab === 'centros') renderCentros(el, q);
+  else if (tab === 'directorio') renderDirectorio(el, q);
+  else if (tab === 'empresas') renderEmpresas(el, q);
+}
+
+/* ---------- Servicios ---------- */
+function renderServicios(el, q) {
+  const ql = q.toLowerCase();
+  const entries = Object.entries(state.agenda.servicios)
+    .filter(([s]) => !ql || s.toLowerCase().includes(ql))
+    .sort((a,b) => a[0].localeCompare(b[0]));
+  if (!entries.length) {
+    el.innerHTML = emptyState({
+      icon: 'users',
+      title: 'Sin servicios en la agenda',
+      text: 'Los servicios aparecen acá cuando hay equipos asignados, o creá uno manualmente con "Agregar".'
+    });
+    renderIcons();
+    return;
+  }
+  el.innerHTML = entries.map(([srv, data]) => {
+    const sup = data.supervisor || {};
+    const enc = data.encargado || {};
+    const otros = data.otros || [];
+    const cr = (state.agenda.centros || []).find(c => (c.servicios || []).includes(srv));
+    return `
+      <div class="card mb-3">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${escapeHtml(srv)}</div>
+            ${cr ? `<div class="card-subtle">CR: ${escapeHtml(cr.nombre)}</div>` : ''}
+          </div>
+          <button class="btn btn-sm" data-edit-srv="${escapeHtml(srv)}"><i data-lucide="pencil"></i> Editar</button>
+        </div>
+        <div class="grid grid-2">
+          ${contactBlock('Supervisor', sup)}
+          ${contactBlock('Encargado', enc)}
+        </div>
+        ${otros.length ? `
+          <div class="mt-3">
+            <div class="text-xs muted mb-2">Otros contactos</div>
+            ${otros.map(o => contactBlock(o.rol || 'Contacto', o, srv, o.id)).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+  renderIcons();
+  el.querySelectorAll('[data-edit-srv]').forEach(b => b.addEventListener('click', () => editServicio(b.dataset.editSrv)));
+}
+
+function contactBlock(label, c, srv, otroId) {
+  if (!c || !(c.nombre || c.email || c.anexo || c.celular)) {
+    return `<div class="text-sm muted"><strong>${escapeHtml(label)}:</strong> —</div>`;
+  }
+  return `
+    <div class="text-sm">
+      <div class="text-xs muted">${escapeHtml(label)}</div>
+      <div class="semibold">${escapeHtml(c.nombre || '—')}</div>
+      <div class="muted">${escapeHtml(c.email || '')} ${c.anexo ? '· anexo ' + escapeHtml(c.anexo) : ''} ${c.celular ? '· ' + escapeHtml(c.celular) : ''}</div>
+    </div>
+  `;
+}
+
+function editServicio(srv) {
+  const data = state.agenda.servicios[srv] || { supervisor: null, encargado: null, otros: [] };
+  const footer = `<button class="btn cancel" type="button">Cancelar</button><button class="btn btn-primary" id="srv-save">Guardar</button>`;
+  const modal = openModal({
+    title: 'Editar servicio: ' + srv,
+    size: 'md',
+    body: `
+      <h4 class="mb-2">Supervisor</h4>
+      ${contactFields(data.supervisor || {}, 'sup')}
+      <h4 class="mt-4 mb-2">Encargado de equipos</h4>
+      ${contactFields(data.encargado || {}, 'enc')}
+    `,
+    footer
+  });
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#srv-save').addEventListener('click', () => {
+    data.supervisor = readContact(modal.modalEl, 'sup');
+    data.encargado = readContact(modal.modalEl, 'enc');
+    state.agenda.servicios[srv] = data;
+    savePersisted(); schedulePush();
+    toast({ message: 'Servicio guardado.', kind: 'ok' });
+    modal.close();
+    refreshActiveView();
+  });
+}
+
+function contactFields(c, p) {
+  return `
+    <div class="grid grid-2">
+      <div class="field"><label class="field-label">Nombre</label><input class="input" id="${p}-nombre" value="${escapeHtml(c.nombre || '')}" /></div>
+      <div class="field"><label class="field-label">Email</label><input class="input" type="email" id="${p}-email" value="${escapeHtml(c.email || '')}" /></div>
+      <div class="field"><label class="field-label">Anexo</label><input class="input" id="${p}-anexo" value="${escapeHtml(c.anexo || '')}" /></div>
+      <div class="field"><label class="field-label">Celular</label><input class="input" id="${p}-cel" value="${escapeHtml(c.celular || '')}" /></div>
+    </div>
+  `;
+}
+
+function readContact(modalEl, p) {
+  return {
+    nombre: modalEl.querySelector('#' + p + '-nombre').value.trim(),
+    email: modalEl.querySelector('#' + p + '-email').value.trim(),
+    anexo: modalEl.querySelector('#' + p + '-anexo').value.trim(),
+    celular: modalEl.querySelector('#' + p + '-cel').value.trim()
+  };
+}
+
+/* ---------- Centros (CR) ---------- */
+function renderCentros(el, q) {
+  const ql = q.toLowerCase();
+  const list = (state.agenda.centros || []).filter(c => !ql || c.nombre.toLowerCase().includes(ql));
+  if (!list.length) {
+    el.innerHTML = emptyState({ icon: 'building', title: 'Sin centros', text: 'Creá tu primer Centro de Responsabilidad.' });
+    renderIcons();
+    return;
+  }
+  el.innerHTML = list.map(cr => `
+    <div class="card mb-3">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(cr.nombre)}</div>
+          <div class="card-subtle">Servicios: ${(cr.servicios||[]).map(escapeHtml).join(', ') || '—'}</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-sm" data-edit-cr="${escapeHtml(cr.id)}"><i data-lucide="pencil"></i></button>
+          <button class="btn btn-sm btn-danger" data-del-cr="${escapeHtml(cr.id)}"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      ${cr.jefe ? contactBlock('Jefe CR', cr.jefe) : '<div class="text-sm muted">Sin jefe asignado</div>'}
+    </div>
+  `).join('');
+  renderIcons();
+  el.querySelectorAll('[data-edit-cr]').forEach(b => b.addEventListener('click', () => editCR(b.dataset.editCr)));
+  el.querySelectorAll('[data-del-cr]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar CR', message: '¿Eliminar este Centro de Responsabilidad?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    state.agenda.centros = state.agenda.centros.filter(x => x.id !== b.dataset.delCr);
+    savePersisted(); schedulePush();
+    refreshActiveView();
+  }));
+}
+
+function editCR(crId) {
+  const cr = (state.agenda.centros || []).find(c => c.id === crId) || { id: 'cr-' + uid(), nombre: '', jefe: {}, servicios: [] };
+  const isNew = !state.agenda.centros.some(c => c.id === cr.id);
+  const allServicios = [...new Set(state.equipos.map(e => e.servicio).filter(Boolean))].sort();
+  const footer = `<button class="btn cancel" type="button">Cancelar</button><button class="btn btn-primary" id="cr-save">Guardar</button>`;
+  const modal = openModal({
+    title: isNew ? 'Nuevo Centro de Responsabilidad' : 'Editar CR',
+    size: 'md',
+    body: `
+      <div class="field mb-3"><label class="field-label">Nombre</label><input class="input" id="cr-nombre" value="${escapeHtml(cr.nombre || '')}" /></div>
+      <h4 class="mb-2">Jefe del CR</h4>
+      ${contactFields(cr.jefe || {}, 'cr')}
+      <h4 class="mt-4 mb-2">Servicios asignados</h4>
+      <div class="col" style="max-height:220px; overflow-y:auto; border:1px solid var(--c-border); border-radius:var(--r-md); padding:8px">
+        ${allServicios.map(s => `
+          <label class="check"><input type="checkbox" value="${escapeHtml(s)}" ${(cr.servicios||[]).includes(s) ? 'checked' : ''} class="cr-srv" /> ${escapeHtml(s)}</label>
+        `).join('') || '<p class="muted text-sm">Cargá equipos para listar servicios.</p>'}
+      </div>
+    `,
+    footer
+  });
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#cr-save').addEventListener('click', () => {
+    cr.nombre = modal.modalEl.querySelector('#cr-nombre').value.trim();
+    if (!cr.nombre) { toast({ message: 'El nombre es obligatorio.', kind: 'warn' }); return; }
+    cr.jefe = readContact(modal.modalEl, 'cr');
+    cr.servicios = [...modal.modalEl.querySelectorAll('.cr-srv:checked')].map(c => c.value);
+    if (isNew) state.agenda.centros.push(cr);
+    savePersisted(); schedulePush();
+    toast({ message: 'Centro guardado.', kind: 'ok' });
+    modal.close();
+    refreshActiveView();
+  });
+}
+
+/* ---------- Directorio ---------- */
+function renderDirectorio(el, q) {
+  const ql = q.toLowerCase();
+  const list = (state.agenda.directorio || []).filter(d => !ql || (d.nombre + d.organizacion + d.email).toLowerCase().includes(ql));
+  if (!list.length) {
+    el.innerHTML = emptyState({ icon: 'book-user', title: 'Directorio vacío', text: 'Agregá referentes externos (proveedores, organismos, etc.)' });
+    renderIcons();
+    return;
+  }
+  el.innerHTML = list.map(d => `
+    <div class="card mb-2">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(d.nombre || '—')}</div>
+          <div class="card-subtle">${escapeHtml(d.categoria || '')} ${d.organizacion ? '· ' + escapeHtml(d.organizacion) : ''}</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-sm" data-edit-dir="${escapeHtml(d.id)}"><i data-lucide="pencil"></i></button>
+          <button class="btn btn-sm btn-danger" data-del-dir="${escapeHtml(d.id)}"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      <div class="text-sm muted">${escapeHtml(d.email || '')} ${d.telefono ? '· ' + escapeHtml(d.telefono) : ''}</div>
+      ${d.notas ? `<div class="text-sm mt-2">${escapeHtml(d.notas)}</div>` : ''}
+    </div>
+  `).join('');
+  renderIcons();
+  el.querySelectorAll('[data-edit-dir]').forEach(b => b.addEventListener('click', () => editDirectorio(b.dataset.editDir)));
+  el.querySelectorAll('[data-del-dir]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar', message: '¿Eliminar entrada del directorio?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    state.agenda.directorio = state.agenda.directorio.filter(x => x.id !== b.dataset.delDir);
+    savePersisted(); schedulePush();
+    refreshActiveView();
+  }));
+}
+
+function editDirectorio(id) {
+  const d = (state.agenda.directorio || []).find(x => x.id === id) || { id: 'd-' + uid() };
+  const isNew = !state.agenda.directorio.some(x => x.id === d.id);
+  const footer = `<button class="btn cancel">Cancelar</button><button class="btn btn-primary" id="d-save">Guardar</button>`;
+  const modal = openModal({
+    title: isNew ? 'Nueva entrada de directorio' : 'Editar entrada',
+    size: 'md',
+    body: `
+      <div class="grid grid-2">
+        <div class="field"><label class="field-label">Nombre</label><input class="input" id="d-nombre" value="${escapeHtml(d.nombre || '')}" /></div>
+        <div class="field"><label class="field-label">Categoría</label><input class="input" id="d-cat" value="${escapeHtml(d.categoria || '')}" /></div>
+        <div class="field"><label class="field-label">Organización</label><input class="input" id="d-org" value="${escapeHtml(d.organizacion || '')}" /></div>
+        <div class="field"><label class="field-label">Email</label><input class="input" type="email" id="d-email" value="${escapeHtml(d.email || '')}" /></div>
+        <div class="field"><label class="field-label">Teléfono</label><input class="input" id="d-tel" value="${escapeHtml(d.telefono || '')}" /></div>
+      </div>
+      <div class="field mt-3"><label class="field-label">Notas</label><textarea class="textarea" id="d-notas" rows="3">${escapeHtml(d.notas || '')}</textarea></div>
+    `,
+    footer
+  });
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#d-save').addEventListener('click', () => {
+    Object.assign(d, {
+      nombre: modal.modalEl.querySelector('#d-nombre').value.trim(),
+      categoria: modal.modalEl.querySelector('#d-cat').value.trim(),
+      organizacion: modal.modalEl.querySelector('#d-org').value.trim(),
+      email: modal.modalEl.querySelector('#d-email').value.trim(),
+      telefono: modal.modalEl.querySelector('#d-tel').value.trim(),
+      notas: modal.modalEl.querySelector('#d-notas').value.trim()
+    });
+    if (!d.nombre) { toast({ message: 'El nombre es obligatorio.', kind: 'warn' }); return; }
+    if (isNew) state.agenda.directorio.push(d);
+    savePersisted(); schedulePush();
+    toast({ message: 'Entrada guardada.', kind: 'ok' });
+    modal.close();
+    refreshActiveView();
+  });
+}
+
+/* ---------- Empresas ---------- */
+function renderEmpresas(el, q) {
+  const ql = q.toLowerCase();
+  const list = (state.agenda.empresas || []).filter(e => !ql || e.nombre.toLowerCase().includes(ql));
+  if (!list.length) {
+    el.innerHTML = emptyState({ icon: 'briefcase', title: 'Sin empresas proveedoras', text: 'Agregá empresas que provean servicios técnicos.' });
+    renderIcons();
+    return;
+  }
+  el.innerHTML = list.map(e => `
+    <div class="card mb-3">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(e.nombre)}</div>
+          <div class="card-subtle">${escapeHtml(e.direccion || '')}</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-sm" data-edit-emp="${escapeHtml(e.id)}"><i data-lucide="pencil"></i></button>
+          <button class="btn btn-sm btn-danger" data-del-emp="${escapeHtml(e.id)}"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      ${(e.contactos || []).length ? `
+        <div class="mt-2">
+          ${e.contactos.map(c => `
+            <div class="list-item">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml(c.nombre || '—')}${c.cargo ? ' · ' + escapeHtml(c.cargo) : ''}</div>
+                <div class="item-meta">${escapeHtml(c.email || '')} ${c.telefono ? '· ' + escapeHtml(c.telefono) : ''} ${c.celular ? '· ' + escapeHtml(c.celular) : ''}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="text-sm muted mt-2">Sin contactos</div>'}
+    </div>
+  `).join('');
+  renderIcons();
+  el.querySelectorAll('[data-edit-emp]').forEach(b => b.addEventListener('click', () => editEmpresa(b.dataset.editEmp)));
+  el.querySelectorAll('[data-del-emp]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar empresa', message: '¿Eliminar esta empresa y sus contactos?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    state.agenda.empresas = state.agenda.empresas.filter(x => x.id !== b.dataset.delEmp);
+    savePersisted(); schedulePush();
+    refreshActiveView();
+  }));
+}
+
+function editEmpresa(id) {
+  const e = (state.agenda.empresas || []).find(x => x.id === id) || { id: 'e-' + uid(), contactos: [] };
+  const isNew = !state.agenda.empresas.some(x => x.id === e.id);
+  const work = JSON.parse(JSON.stringify(e));
+  const footer = `<button class="btn cancel">Cancelar</button><button class="btn btn-primary" id="e-save">Guardar</button>`;
+  const modal = openModal({
+    title: isNew ? 'Nueva empresa' : 'Editar empresa',
+    size: 'md',
+    body: empresaBody(work),
+    footer
+  });
+  const refresh = () => { modal.bodyEl.innerHTML = empresaBody(work); renderIcons(); bindContactos(); };
+  const bindContactos = () => {
+    modal.modalEl.querySelector('#e-add-c').addEventListener('click', () => {
+      work.contactos = work.contactos || [];
+      work.contactos.push({ id: 'c-' + uid(), nombre: '', cargo: '', email: '', telefono: '', celular: '' });
+      refresh();
+    });
+    modal.modalEl.querySelectorAll('[data-c-del]').forEach(b => b.addEventListener('click', () => {
+      work.contactos = work.contactos.filter(x => x.id !== b.dataset.cDel);
+      refresh();
+    }));
+  };
+  renderIcons();
+  bindContactos();
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#e-save').addEventListener('click', () => {
+    work.nombre = modal.modalEl.querySelector('#e-nombre').value.trim();
+    work.direccion = modal.modalEl.querySelector('#e-dir').value.trim();
+    if (!work.nombre) { toast({ message: 'El nombre es obligatorio.', kind: 'warn' }); return; }
+    (work.contactos || []).forEach(c => {
+      const row = modal.modalEl.querySelector(`[data-cid="${c.id}"]`);
+      if (!row) return;
+      c.nombre = row.querySelector('[data-c-nombre]').value.trim();
+      c.cargo  = row.querySelector('[data-c-cargo]').value.trim();
+      c.email  = row.querySelector('[data-c-email]').value.trim();
+      c.telefono = row.querySelector('[data-c-tel]').value.trim();
+      c.celular = row.querySelector('[data-c-cel]').value.trim();
+    });
+    Object.assign(e, work);
+    if (isNew) state.agenda.empresas.push(e);
+    savePersisted(); schedulePush();
+    toast({ message: 'Empresa guardada.', kind: 'ok' });
+    modal.close();
+    refreshActiveView();
+  });
+}
+
+function empresaBody(e) {
+  return `
+    <div class="grid grid-2 mb-3">
+      <div class="field"><label class="field-label">Nombre</label><input class="input" id="e-nombre" value="${escapeHtml(e.nombre || '')}" /></div>
+      <div class="field"><label class="field-label">Dirección</label><input class="input" id="e-dir" value="${escapeHtml(e.direccion || '')}" /></div>
+    </div>
+    <div class="row-between mb-2">
+      <h4>Contactos</h4>
+      <button class="btn btn-sm" id="e-add-c" type="button"><i data-lucide="plus"></i> Agregar</button>
+    </div>
+    ${(e.contactos || []).map(c => `
+      <div class="card mb-2" data-cid="${escapeHtml(c.id)}" style="padding:10px">
+        <div class="grid grid-2">
+          <div class="field"><label class="field-label">Nombre</label><input class="input" data-c-nombre value="${escapeHtml(c.nombre)}" /></div>
+          <div class="field"><label class="field-label">Cargo</label><input class="input" data-c-cargo value="${escapeHtml(c.cargo)}" /></div>
+          <div class="field"><label class="field-label">Email</label><input class="input" data-c-email value="${escapeHtml(c.email)}" /></div>
+          <div class="field"><label class="field-label">Teléfono</label><input class="input" data-c-tel value="${escapeHtml(c.telefono)}" /></div>
+          <div class="field"><label class="field-label">Celular</label><input class="input" data-c-cel value="${escapeHtml(c.celular)}" /></div>
+        </div>
+        <div class="row" style="justify-content:flex-end; margin-top:6px">
+          <button class="btn btn-sm btn-danger" data-c-del="${escapeHtml(c.id)}" type="button"><i data-lucide="trash-2"></i> Quitar</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function addForm(tab) {
+  if (tab === 'centros') editCR(null);
+  else if (tab === 'directorio') editDirectorio(null);
+  else if (tab === 'empresas') editEmpresa(null);
+  else toast({ message: 'Los servicios se crean asignando equipos a un servicio en el archivo Excel.', kind: 'info' });
+}
+
+__mp__.modules['js/views/agenda.js'] = { renderAgenda };
+})();
+
+/* ===== js/views/historial.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const val = __mp__.modules['js/utils.js'].val;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const emptyState = __mp__.modules['js/ui.js'].emptyState;
+const navigate = __mp__.modules['js/router.js'].navigate;
+/* Vista: Historial — eventos de un equipo, filtrable y exportable */
+
+
+
+
+
+
+const TIPO_LABEL = {
+  mp:'MP', reporte_servicio:'Reporte', visita_tecnica:'Visita',
+  cotizacion:'Cotización', oc:'OC', envio:'Envío', solicitud:'Solicitud',
+  recepcion:'Recepción', reparacion:'Reparación'
+};
+
+function renderHistorial(root, params = {}) {
+  const key = params.key;
+  if (!key) {
+    root.innerHTML = emptyState({ icon: 'history', title: 'Selecciona un equipo', text: 'Abrí un equipo desde "Equipos" para ver su historial.' });
+    renderIcons();
+    return;
+  }
+  const eq = state.equipos.find(e => e.key === key);
+  if (!eq) {
+    root.innerHTML = emptyState({ icon: 'search-x', title: 'Equipo no encontrado', text: key });
+    renderIcons();
+    return;
+  }
+  let eventos = (state.eventos[key] || []).slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+  const q = (params.q || '').toLowerCase();
+  const tipo = params.tipo || '';
+  const desde = params.desde || '';
+  const hasta = params.hasta || '';
+  let list = eventos.filter(ev => {
+    if (q) {
+      const hay = (ev.observacion + ' ' + ev.ejecutor + ' ' + ev.empresa).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (tipo && ev.tipo !== tipo) return false;
+    if (desde && ev.fecha < desde) return false;
+    if (hasta && ev.fecha > hasta) return false;
+    return true;
+  });
+
+  root.innerHTML = `
+    <div class="view-header">
+      <div>
+        <h2>${escapeHtml(eq.equipo || '—')} · Historial</h2>
+        <p class="muted">${escapeHtml(eq.inv || eq.id || '')} · ${escapeHtml(eq.servicio || '')} · ${eventos.length} eventos totales</p>
+      </div>
+      <div class="row">
+        <button class="btn" id="btn-back"><i data-lucide="arrow-left"></i> Volver</button>
+        <button class="btn" id="btn-export"><i data-lucide="download"></i> Exportar</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="search-input grow"><i data-lucide="search"></i><input class="input" id="h-q" placeholder="Buscar en observaciones, ejecutor, empresa…" value="${escapeHtml(params.q || '')}" /></div>
+      <select class="select" id="h-tipo">
+        <option value="">Tipo (todos)</option>
+        ${Object.entries(TIPO_LABEL).map(([k,l]) => `<option value="${k}" ${tipo===k?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <input class="input" type="date" id="h-desde" value="${escapeHtml(desde)}" />
+      <input class="input" type="date" id="h-hasta" value="${escapeHtml(hasta)}" />
+    </div>
+
+    ${list.length === 0 ? emptyState({ icon: 'inbox', title: 'Sin eventos para esos filtros', text: '' }) : `
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Resultado</th><th>Ejecutor</th><th>Empresa</th><th>Observación</th></tr></thead>
+          <tbody>${list.map(ev => `
+            <tr>
+              <td class="mono">${fmtDate(ev.fecha)}</td>
+              <td>${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</td>
+              <td><code>${escapeHtml(ev.resultado || '—')}</code></td>
+              <td>${val(ev.ejecutor)}</td>
+              <td>${val(ev.empresa)}</td>
+              <td style="max-width:380px">${escapeHtml(ev.observacion || '').replace(/\n/g,'<br>')}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>
+    `}
+  `;
+  renderIcons();
+  root.querySelector('#btn-back').addEventListener('click', () => history.back());
+  root.querySelector('#btn-export').addEventListener('click', () => exportXLSX(eq, list));
+  const sync = () => navigate('historial', {
+    key,
+    q: root.querySelector('#h-q').value,
+    tipo: root.querySelector('#h-tipo').value,
+    desde: root.querySelector('#h-desde').value,
+    hasta: root.querySelector('#h-hasta').value
+  });
+  root.querySelector('#h-q').addEventListener('input', () => { clearTimeout(window.__hq); window.__hq = setTimeout(sync, 200); });
+  ['h-tipo','h-desde','h-hasta'].forEach(id => root.querySelector('#'+id).addEventListener('change', sync));
+}
+
+function exportXLSX(eq, list) {
+  if (!window.XLSX) return;
+  const wb = window.XLSX.utils.book_new();
+  const rows = [['Fecha','Tipo','Resultado','Ejecutor','Empresa','N° OC','N° Cotización','Observación']];
+  list.forEach(ev => rows.push([
+    ev.fecha, TIPO_LABEL[ev.tipo] || ev.tipo, ev.resultado || '',
+    ev.ejecutor || '', ev.empresa || '', ev.nOC || '', ev.nCotizacion || '', ev.observacion || ''
+  ]));
+  const ws = window.XLSX.utils.aoa_to_sheet(rows);
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+  const name = (eq.equipo || eq.key).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+  window.XLSX.writeFile(wb, `historial_${name}_${todayISO()}.xlsx`);
+}
+
+__mp__.modules['js/views/historial.js'] = { renderHistorial };
+})();
+
+/* ===== js/main.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const loadDataCache = __mp__.modules['js/state.js'].loadDataCache;
+const loadPersisted = __mp__.modules['js/state.js'].loadPersisted;
+const loadSyncMarked = __mp__.modules['js/state.js'].loadSyncMarked;
+const loadPrefs = __mp__.modules['js/state.js'].loadPrefs;
+const savePrefs = __mp__.modules['js/state.js'].savePrefs;
+const runMigrationV4 = __mp__.modules['js/state.js'].runMigrationV4;
+const resetAllData = __mp__.modules['js/state.js'].resetAllData;
+const toast = __mp__.modules['js/ui.js'].toast;
+const showLoading = __mp__.modules['js/ui.js'].showLoading;
+const hideLoading = __mp__.modules['js/ui.js'].hideLoading;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const fmtDate = __mp__.modules['js/utils.js'].fmtDate;
+const fmtRelative = __mp__.modules['js/utils.js'].fmtRelative;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const initRouter = __mp__.modules['js/router.js'].initRouter;
+const registerRoute = __mp__.modules['js/router.js'].registerRoute;
+const navigate = __mp__.modules['js/router.js'].navigate;
+const refreshActiveView = __mp__.modules['js/router.js'].refreshActiveView;
+const initGas = __mp__.modules['js/data/gas.js'].initGas;
+const gas = __mp__.modules['js/data/gas.js'].gas;
+const onGasStatus = __mp__.modules['js/data/gas.js'].onGasStatus;
+const getMasterMeta = __mp__.modules['js/data/gas.js'].getMasterMeta;
+const fetchMaster = __mp__.modules['js/data/gas.js'].fetchMaster;
+const uploadMaster = __mp__.modules['js/data/gas.js'].uploadMaster;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const loadFile = __mp__.modules['js/data/excel.js'].loadFile;
+const loadFromBytes = __mp__.modules['js/data/excel.js'].loadFromBytes;
+const renderHoy = __mp__.modules['js/views/hoy.js'].renderHoy;
+const renderEquipos = __mp__.modules['js/views/equipos.js'].renderEquipos;
+const renderPendientes = __mp__.modules['js/views/pendientes.js'].renderPendientes;
+const renderVerificacion = __mp__.modules['js/views/verificacion.js'].renderVerificacion;
+const renderAgenda = __mp__.modules['js/views/agenda.js'].renderAgenda;
+const renderHistorial = __mp__.modules['js/views/historial.js'].renderHistorial;
+const openGasSettings = __mp__.modules['js/forms/gas-settings.js'].openGasSettings;
+/* Entry point — bootstrap del app */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---------- Boot ---------- */
+async function boot() {
+  loadPrefs();
+  loadSyncMarked();
+  loadPersisted();
+  loadDataCache();
+  initGas();
+
+  /* Migración v4.0 (extrae pendientes de observación legacy) */
+  const migrated = runMigrationV4();
+  if (migrated) toast({ message: `Migración: ${migrated} pendientes creados desde observaciones antiguas.`, kind: 'info', durationMs: 6000 });
+
+  /* Registrar rutas */
+  registerRoute('hoy',          renderHoy);
+  registerRoute('equipos',      renderEquipos);
+  registerRoute('pendientes',   renderPendientes);
+  registerRoute('verificacion', renderVerificacion);
+  registerRoute('agenda',       renderAgenda);
+  registerRoute('historial',    renderHistorial);
+
+  bindHeader();
+  bindSidebar();
+  initRouter();
+
+  /* Intento de restaurar maestro desde Drive si no hay datos locales */
+  if (!state.loaded && gas.url) await tryRestoreMaster();
+
+  /* Refrescar badges periódicamente */
+  setInterval(updateBadges, 60_000);
+  updateBadges();
+  updateSyncDot();
+  onGasStatus(updateSyncDot);
+
+  renderIcons();
+}
+
+async function tryRestoreMaster() {
+  try {
+    const meta = await getMasterMeta();
+    if (!meta || !meta.fileId) return;
+    showLoading('Bajando archivo maestro desde Drive…', meta.name || '');
+    const m = await fetchMaster();
+    if (!m) { hideLoading(); return; }
+    await loadFromBytes(m.bytes, m.name || meta.name || 'Maestro');
+    hideLoading();
+    toast({ message: 'Maestro restaurado desde Drive.', kind: 'ok' });
+    refreshActiveView();
+  } catch (err) {
+    hideLoading();
+    console.warn('restore master failed', err);
+  }
+}
+
+/* ---------- Header & Sidebar ---------- */
+function bindHeader() {
+  document.getElementById('btn-upload')?.addEventListener('click', () => document.getElementById('file-input')?.click());
+  document.getElementById('file-input')?.addEventListener('change', onFileChosen);
+  document.getElementById('btn-menu')?.addEventListener('click', toggleMenu);
+  document.getElementById('btn-sidebar')?.addEventListener('click', toggleSidebarMobile);
+
+  document.getElementById('menu-gas')?.addEventListener('click', () => { closeMenu(); openGasSettings(); });
+  document.getElementById('menu-user')?.addEventListener('click', () => { closeMenu(); openUserPref(); });
+  document.getElementById('menu-export-json')?.addEventListener('click', () => { closeMenu(); exportJSON(); });
+  document.getElementById('menu-reset')?.addEventListener('click', async () => {
+    closeMenu();
+    const ok = await confirmDialog({ title: 'Eliminar TODOS los datos', message: 'Esto borra eventos, pendientes, agenda, archivo cargado y configuración. No se puede deshacer.', danger: true, confirmLabel: 'Eliminar todo' });
+    if (!ok) return;
+    resetAllData();
+    location.reload();
+  });
+
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('header-menu-pop');
+    if (!menu) return;
+    if (!menu.contains(e.target) && e.target !== document.getElementById('btn-menu')) closeMenu();
+  });
+}
+
+function bindSidebar() {
+  document.querySelectorAll('[data-route]').forEach(el => {
+    el.addEventListener('click', () => {
+      navigate(el.dataset.route);
+      document.body.classList.remove('is-mobile-drawer');
+      document.querySelector('.app')?.classList.remove('is-mobile-drawer');
+    });
+  });
+  document.getElementById('sync-status')?.addEventListener('click', openGasSettings);
+  document.getElementById('btn-sidebar-toggle')?.addEventListener('click', () => {
+    state.prefs.sidebarCollapsed = !state.prefs.sidebarCollapsed;
+    savePrefs();
+    applySidebarCollapsed();
+  });
+  applySidebarCollapsed();
+}
+
+function applySidebarCollapsed() {
+  document.querySelector('.app')?.classList.toggle('is-sidebar-collapsed', !!state.prefs.sidebarCollapsed);
+}
+
+function toggleSidebarMobile() {
+  document.querySelector('.app')?.classList.toggle('is-mobile-drawer');
+}
+
+function toggleMenu() {
+  const m = document.getElementById('header-menu-pop');
+  m?.classList.toggle('hidden');
+}
+function closeMenu() {
+  document.getElementById('header-menu-pop')?.classList.add('hidden');
+}
+
+async function onFileChosen(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    showLoading('Procesando archivo…', file.name);
+    const parsed = await loadFile(file);
+    /* Si hay backend, subir maestro a Drive para restaurar en otros dispositivos */
+    if (gas.url) {
+      try { await uploadMaster(file); }
+      catch (err) { console.warn('uploadMaster failed', err); }
+    }
+    hideLoading();
+    if (parsed.warnings.length) toast({ message: `Archivo cargado con ${parsed.warnings.length} advertencias. Revisá "Verificación".`, kind: 'warn', durationMs: 6000 });
+    else toast({ message: 'Archivo cargado.', kind: 'ok' });
+    refreshActiveView();
+    updateBadges();
+  } catch (err) {
+    hideLoading();
+    toast({ message: 'No se pudo cargar el archivo: ' + err.message, kind: 'danger', durationMs: 8000 });
+  }
+}
+
+function openUserPref() {
+  const footer = `<button class="btn cancel">Cancelar</button><button class="btn btn-primary" id="u-save">Guardar</button>`;
+  const modal = openModal({
+    title: 'Mi usuario',
+    size: 'sm',
+    body: `
+      <p class="muted mb-3">Tu nombre aparece como ejecutor por defecto al crear eventos y pendientes.</p>
+      <div class="field"><label class="field-label">Nombre</label><input class="input" id="u-nombre" value="${(state.prefs.miUsuario || '').replace(/"/g,'&quot;')}" /></div>
+    `,
+    footer
+  });
+  modal.footer.querySelector('.cancel').addEventListener('click', modal.close);
+  modal.footer.querySelector('#u-save').addEventListener('click', () => {
+    state.prefs.miUsuario = modal.modalEl.querySelector('#u-nombre').value.trim();
+    savePrefs();
+    toast({ message: 'Guardado.', kind: 'ok' });
+    modal.close();
+  });
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({
+    eventos: state.eventos,
+    pendientes: state.pendientes,
+    agenda: state.agenda,
+    syncMarked: [...state.syncMarked],
+    exportedAt: new Date().toISOString()
+  }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gestion_mp_${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Badges ---------- */
+function updateBadges() {
+  const today = todayISO();
+  let vencidos = 0, abiertos = 0;
+  Object.values(state.pendientes).forEach(arr => (arr||[]).forEach(p => {
+    if (p.estado === 'cerrado') return;
+    abiertos++;
+    const due = p.fechaCompromiso || p.proximoRecordatorio;
+    if (due && due < today) vencidos++;
+  }));
+  setBadge('badge-hoy', vencidos, 'is-danger');
+  setBadge('badge-pendientes', abiertos, 'is-warn');
+}
+
+function setBadge(id, n, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = n;
+  el.classList.toggle('is-zero', n === 0);
+  if (cls) { el.classList.remove('is-danger','is-warn','is-info'); el.classList.add(cls); }
+}
+
+function updateSyncDot() {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'dot';
+  if (gas.status === 'ok') dot.classList.add('dot-ok');
+  else if (gas.status === 'error') dot.classList.add('dot-danger');
+  else if (gas.status === 'syncing') dot.classList.add('dot-info', 'dot-pulse');
+  else if (gas.status === 'pending') dot.classList.add('dot-warn');
+  const lbl = document.getElementById('sync-label');
+  if (lbl) {
+    if (!gas.url) lbl.textContent = 'Sin backend';
+    else if (gas.status === 'ok' && gas.lastSync) lbl.textContent = 'Sincronizado ' + fmtRelative(gas.lastSync.slice(0,10));
+    else if (gas.status === 'syncing') lbl.textContent = 'Sincronizando…';
+    else if (gas.status === 'error') lbl.textContent = 'Error de sync';
+    else if (gas.status === 'pending') lbl.textContent = 'Esperando sync';
+    else lbl.textContent = 'Sin sync';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+
+__mp__.modules['js/main.js'] = {};
+})();
+</script>
+</body>
+</html>

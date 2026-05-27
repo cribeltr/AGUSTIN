@@ -55,6 +55,12 @@ export function renderVerificacion(root) {
   const v = state.verif || {};
   const issues = computeIssues();
   const issuesCount = issues.faltaArchivo.length + issues.distinto.length;
+  /* Eventos MP marcados como no oficiales (esperando reflejarse en el próximo maestro) */
+  let noOficCount = 0, oficCount = 0;
+  Object.values(state.eventos).forEach(arr => (arr||[]).forEach(ev => {
+    if (ev.tipo !== 'mp') return;
+    if (ev.oficial === false) noOficCount++; else oficCount++;
+  }));
 
   root.innerHTML = `
     <div class="view-header">
@@ -68,6 +74,12 @@ export function renderVerificacion(root) {
       ${kpi('Equipos válidos', v.validos || 0)}
       ${kpi('Familias', (v.familias || []).length)}
       ${kpi('Filas registro', v.regRows || 0)}
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      ${kpi('Eventos MP oficiales', oficCount)}
+      ${kpiKind('Eventos MP no oficiales', noOficCount, noOficCount > 0 ? 'warn' : '', 'Eventos creados en la app que aún no aparecen en el archivo maestro. Se promoverán automáticamente al cargar un maestro que los refleje.')}
+      ${kpi('Discrepancias archivo↔app', issuesCount)}
     </div>
 
     ${(v.headerWarnings && v.headerWarnings.length) ? `
@@ -150,6 +162,13 @@ export function renderVerificacion(root) {
 
 function kpi(label, n) {
   return `<div class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${n}</div></div>`;
+}
+function kpiKind(label, n, kind, hint) {
+  return `<div class="kpi ${kind ? 'kpi-' + kind : ''}" title="${escapeHtml(hint || '')}">
+    <div class="kpi-label">${escapeHtml(label)}</div>
+    <div class="kpi-value">${n}</div>
+    ${hint ? `<div class="kpi-note">${escapeHtml(hint)}</div>` : ''}
+  </div>`;
 }
 
 function issueRow(i, kind) {

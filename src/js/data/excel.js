@@ -196,6 +196,7 @@ export async function loadFile(file) {
   state.verif = parsed.verif;
   state.loaded = true;
   saveDataCache();
+  parsed.reconciled = reconcileOficial();
   return parsed;
 }
 
@@ -211,7 +212,42 @@ export async function loadFromBytes(bytes, name = 'Maestro') {
   state.verif = parsed.verif;
   state.loaded = true;
   saveDataCache();
+  parsed.reconciled = reconcileOficial();
   return parsed;
+}
+
+/* Reconciliación: para cada evento MP marcado como `oficial: false`,
+   chequea si el archivo recién cargado ya refleja su resultado en la
+   columna del mes correspondiente. Si coincide, lo promueve a oficial.
+   Devuelve { promoted, total } para mostrar feedback al usuario.
+   Es no destructiva: nunca degrada eventos oficiales a no oficiales. */
+export function reconcileOficial() {
+  let promoted = 0, total = 0;
+  const byKey = new Map(state.equipos.map(eq => [eq.key, eq]));
+  Object.entries(state.eventos).forEach(([key, arr]) => {
+    (arr || []).forEach(ev => {
+      if (ev.tipo !== 'mp') return;
+      if (ev.oficial !== false) return; // ya es oficial o no aplica
+      total++;
+      if (!ev.fecha || !ev.resultado) return;
+      const mes = parseInt(String(ev.fecha).slice(5, 7), 10) - 1;
+      if (mes < 0 || mes > 11) return;
+      const eq = byKey.get(key);
+      if (!eq) return;
+      const fileVal = eq.regRes[mes];
+      if (fileVal && String(fileVal) === String(ev.resultado)) {
+        ev.oficial = true;
+        promoted++;
+      }
+    });
+  });
+  if (promoted) {
+    // persistir cambios sin disparar GAS push inmediato (lo hace el caller si aplica)
+    try { localStorage.setItem('mp_app_state_v1', JSON.stringify({
+      eventos: state.eventos, pendientes: state.pendientes, agenda: state.agenda
+    })); } catch(_){}
+  }
+  return { promoted, total };
 }
 
 /* ---------- Estado del equipo según regRes + eventos del usuario ---------- */

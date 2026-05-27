@@ -1054,6 +1054,7 @@ kbd {
             <button id="menu-user"><i data-lucide="user"></i> Mi usuario</button>
             <button id="menu-gas"><i data-lucide="cloud"></i> Sincronización…</button>
             <hr/>
+            <button id="menu-export-xlsx"><i data-lucide="file-spreadsheet"></i> Exportar Excel</button>
             <button id="menu-export-json"><i data-lucide="download"></i> Exportar JSON</button>
             <hr/>
             <button id="menu-reset" style="color:var(--c-danger)"><i data-lucide="trash-2"></i> Borrar todos los datos</button>
@@ -1745,6 +1746,7 @@ export async function loadFile(file) {
   state.verif = parsed.verif;
   state.loaded = true;
   saveDataCache();
+  parsed.reconciled = reconcileOficial();
   return parsed;
 }
 
@@ -1760,7 +1762,42 @@ export async function loadFromBytes(bytes, name = 'Maestro') {
   state.verif = parsed.verif;
   state.loaded = true;
   saveDataCache();
+  parsed.reconciled = reconcileOficial();
   return parsed;
+}
+
+/* Reconciliación: para cada evento MP marcado como `oficial: false`,
+   chequea si el archivo recién cargado ya refleja su resultado en la
+   columna del mes correspondiente. Si coincide, lo promueve a oficial.
+   Devuelve { promoted, total } para mostrar feedback al usuario.
+   Es no destructiva: nunca degrada eventos oficiales a no oficiales. */
+function reconcileOficial() {
+  let promoted = 0, total = 0;
+  const byKey = new Map(state.equipos.map(eq => [eq.key, eq]));
+  Object.entries(state.eventos).forEach(([key, arr]) => {
+    (arr || []).forEach(ev => {
+      if (ev.tipo !== 'mp') return;
+      if (ev.oficial !== false) return; // ya es oficial o no aplica
+      total++;
+      if (!ev.fecha || !ev.resultado) return;
+      const mes = parseInt(String(ev.fecha).slice(5, 7), 10) - 1;
+      if (mes < 0 || mes > 11) return;
+      const eq = byKey.get(key);
+      if (!eq) return;
+      const fileVal = eq.regRes[mes];
+      if (fileVal && String(fileVal) === String(ev.resultado)) {
+        ev.oficial = true;
+        promoted++;
+      }
+    });
+  });
+  if (promoted) {
+    // persistir cambios sin disparar GAS push inmediato (lo hace el caller si aplica)
+    try { localStorage.setItem('mp_app_state_v1', JSON.stringify({
+      eventos: state.eventos, pendientes: state.pendientes, agenda: state.agenda
+    })); } catch(_){}
+  }
+  return { promoted, total };
 }
 
 /* ---------- Estado del equipo según regRes + eventos del usuario ---------- */
@@ -1799,7 +1836,7 @@ function diffDaysSimple(a, b) {
   return Math.round((db - da) / 86400000);
 }
 
-__mp__.modules['js/data/excel.js'] = { parseWorkbook, getEquipoEstadoExtended };
+__mp__.modules['js/data/excel.js'] = { parseWorkbook, reconcileOficial, getEquipoEstadoExtended };
 })();
 
 /* ===== js/data/gas.js ===== */
@@ -2008,6 +2045,224 @@ export async function fetchMaster() {
 }
 
 __mp__.modules['js/data/gas.js'] = { gas, onGasStatus, initGas, configureGas, pushAllDebounced, schedulePush };
+})();
+
+/* ===== js/export.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+/* Export XLSX — replica el formato y nomenclatura del backend GAS (Code.gs:replaceAll_).
+   - Eventos: IDs correlativos 1..N tras ordenar por creadoEn ASC; fallback a fecha.
+   - Columnas idénticas a HEADERS[SHEET_EVENTOS], + "Oficial".
+   - Pendientes: IDs correlativos 1..N tras ordenar por fecha ASC.
+   - Incluye "Fecha registro" (creadoEn) en cada fila de evento.
+*/
+
+
+
+
+const TIPO_LABEL = {
+  mp:'Mantención preventiva', reporte_servicio:'Reporte de servicio',
+  visita_tecnica:'Visita técnica', cotizacion:'Cotización', oc:'Orden de Compra',
+  envio:'Envío a Serv. Técnico', solicitud:'Solicitud de trabajo',
+  recepcion:'Recepción', reparacion:'Reparación'
+};
+
+/* Headers idénticos al backend (apps_script/Code.gs) para que el .xlsx sea
+   intercambiable con la hoja Sheets. La columna final "Oficial" extiende
+   el esquema (los lectores antiguos la ignoran). */
+const EVENTO_HEADERS = [
+  'ID Evento','N° Inventario','Equipo','Servicio','Familia','Tipo de evento',
+  'Fecha','Fecha registro','Resultado','Ejecutor','Estado del equipo',
+  'Empresa','Técnico (visita)','N° Envío','N° Cotización','N° OC','Folio',
+  'Folio guía','Observación','Adjuntos (URL)','Actualizado','Oficial'
+];
+
+const PENDIENTE_HEADERS = [
+  'ID Pendiente','N° Inventario','Equipo','Servicio','Descripción',
+  'Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre',
+  'Ejecutor','Estado','Tareas','Seguimientos','Adjuntos (URL)','Actualizado'
+];
+
+function keyToNInv(key) {
+  if (!key) return '';
+  const s = String(key);
+  if (s.startsWith('inv:')) return s.slice(4);
+  if (s.startsWith('id:'))  return 'ID-' + s.slice(3);
+  return s;
+}
+
+function eqInfoFor(key) {
+  const eq = state.equipos.find(e => e.key === key);
+  return eq ? {
+    nInv: eq.inv || ('ID-' + eq.id),
+    equipo: eq.equipo || '',
+    servicio: eq.servicio || '',
+    fam: eq.fam || ''
+  } : { nInv: keyToNInv(key), equipo: '', servicio: '', fam: '' };
+}
+
+function fmtArchivos(arr) {
+  if (!arr || !arr.length) return '';
+  return arr.map(a => `${a.nombre || 'archivo'}: ${a.url || ''}`).join('\n');
+}
+
+function fmtTareas(arr) {
+  if (!arr || !arr.length) return '';
+  return arr.map(t => `[${t.estado === 'cerrado' ? 'x' : ' '}] ${t.descripcion || ''}`).join('\n');
+}
+
+function fmtSegs(arr) {
+  if (!arr || !arr.length) return '';
+  return arr.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map(a => {
+    const tipo = a.tipo ? `[${a.tipo}]` : '';
+    const cont = a.contactadoA ? ` → ${a.contactadoA}` : '';
+    return `${a.fecha || ''} ${tipo}${cont}: ${a.texto || ''}`;
+  }).join('\n');
+}
+
+/* ---------- Eventos ---------- */
+function buildEventoRows() {
+  const now = new Date().toISOString();
+  /* Aplanar todos los eventos y ordenar por creadoEn ASC; fallback a fecha */
+  const flat = [];
+  Object.entries(state.eventos).forEach(([key, arr]) => {
+    (arr || []).forEach(ev => flat.push({ key, ev }));
+  });
+  flat.sort((a, b) => {
+    const fa = a.ev.creadoEn || a.ev.fecha || '';
+    const fb = b.ev.creadoEn || b.ev.fecha || '';
+    return String(fa).localeCompare(String(fb));
+  });
+  const rows = [EVENTO_HEADERS.slice()];
+  flat.forEach(({ key, ev }, i) => {
+    const eqI = eqInfoFor(key);
+    rows.push([
+      i + 1,                              // ID Evento (correlativo)
+      eqI.nInv,
+      eqI.equipo,
+      eqI.servicio,
+      eqI.fam,
+      TIPO_LABEL[ev.tipo] || ev.tipo || '',
+      ev.fecha || '',
+      ev.creadoEn || '',                  // Fecha registro
+      ev.resultado || '',
+      ev.ejecutor || '',
+      ev.estado || '',
+      ev.empresa || '',
+      '',                                  // Técnico (visita): reservado para futuro
+      ev.nEnvio || '',
+      ev.nCotizacion || '',
+      ev.nOC || '',
+      ev.folio || '',
+      ev.folioGuia || '',
+      ev.observacion || '',
+      fmtArchivos(ev.archivos),
+      now,
+      (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'
+    ]);
+  });
+  return rows;
+}
+
+function buildPendienteRows() {
+  const now = new Date().toISOString();
+  const flat = [];
+  Object.entries(state.pendientes).forEach(([key, arr]) => {
+    (arr || []).forEach(p => flat.push({ key, p }));
+  });
+  flat.sort((a, b) => String(a.p.fecha || '').localeCompare(String(b.p.fecha || '')));
+  const rows = [PENDIENTE_HEADERS.slice()];
+  flat.forEach(({ key, p }, i) => {
+    const eqI = eqInfoFor(key);
+    rows.push([
+      i + 1,                              // ID Pendiente (correlativo)
+      eqI.nInv,
+      eqI.equipo,
+      eqI.servicio,
+      p.descripcion || '',
+      p.fecha || '',                      // Fecha creación
+      p.fechaCompromiso || '',
+      p.proximoRecordatorio || '',
+      p.fechaCierre || '',
+      p.ejecutor || '',
+      p.estado || '',
+      fmtTareas(p.tareas),
+      fmtSegs(p.actualizaciones),
+      fmtArchivos(p.archivos),
+      now
+    ]);
+  });
+  return rows;
+}
+
+function exportXLSX() {
+  if (!window.XLSX) throw new Error('SheetJS no cargado');
+  const wb = window.XLSX.utils.book_new();
+
+  const evRows = buildEventoRows();
+  const evSheet = window.XLSX.utils.aoa_to_sheet(evRows);
+  window.XLSX.utils.book_append_sheet(wb, evSheet, 'Eventos');
+
+  const peRows = buildPendienteRows();
+  const peSheet = window.XLSX.utils.aoa_to_sheet(peRows);
+  window.XLSX.utils.book_append_sheet(wb, peSheet, 'Pendientes');
+
+  /* Hoja resumen "Equipos" con la lista del archivo cargado */
+  if (state.equipos.length) {
+    const eqHeaders = ['N° Inventario','Equipo','Familia','Servicio','Ubicación','Marca','Modelo','N° Serie','Año','Frecuencia'];
+    const eqRows = [eqHeaders, ...state.equipos.filter(e => !e.empty).map(e => [
+      e.inv || ('ID-' + e.id), e.equipo, e.fam, e.servicio, e.ubicacion,
+      e.marca, e.modelo, e.serie, e.anio, e.frecuencia
+    ])];
+    const eqSheet = window.XLSX.utils.aoa_to_sheet(eqRows);
+    window.XLSX.utils.book_append_sheet(wb, eqSheet, 'Equipos');
+  }
+
+  const fname = `gestion_mp_2026_${todayISO()}.xlsx`;
+  window.XLSX.writeFile(wb, fname);
+}
+
+/* Export para una sola sección (usado en Historial) */
+function exportHistorialXLSX(eq, eventos) {
+  if (!window.XLSX) throw new Error('SheetJS no cargado');
+  const wb = window.XLSX.utils.book_new();
+  /* Mismas columnas que Eventos del export global, pero solo el equipo */
+  const rows = [EVENTO_HEADERS.slice()];
+  const sorted = eventos.slice().sort((a, b) => String(a.creadoEn || a.fecha || '').localeCompare(b.creadoEn || b.fecha || ''));
+  sorted.forEach((ev, i) => {
+    rows.push([
+      i + 1,
+      eq.inv || ('ID-' + eq.id),
+      eq.equipo || '',
+      eq.servicio || '',
+      eq.fam || '',
+      TIPO_LABEL[ev.tipo] || ev.tipo || '',
+      ev.fecha || '',
+      ev.creadoEn || '',
+      ev.resultado || '',
+      ev.ejecutor || '',
+      ev.estado || '',
+      ev.empresa || '',
+      '',
+      ev.nEnvio || '',
+      ev.nCotizacion || '',
+      ev.nOC || '',
+      ev.folio || '',
+      ev.folioGuia || '',
+      ev.observacion || '',
+      fmtArchivos(ev.archivos),
+      new Date().toISOString(),
+      (ev.oficial === false && ev.tipo === 'mp') ? 'No' : 'Sí'
+    ]);
+  });
+  const ws = window.XLSX.utils.aoa_to_sheet(rows);
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+  const name = (eq.equipo || eq.key).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+  window.XLSX.writeFile(wb, `historial_${name}_${todayISO()}.xlsx`);
+}
+
+__mp__.modules['js/export.js'] = { buildEventoRows, buildPendienteRows, exportXLSX, exportHistorialXLSX };
 })();
 
 /* ===== js/ui.js ===== */
@@ -2250,193 +2505,6 @@ function emptyState({ icon = 'inbox', title, text, action }) {
 __mp__.modules['js/ui.js'] = { toast, openModal, closeAllModals, confirmDialog, showLoading, hideLoading, emptyState };
 })();
 
-/* ===== js/forms/evento.js ===== */
-(function(){
-const state = __mp__.modules['js/state.js'].state;
-const upsertEvento = __mp__.modules['js/state.js'].upsertEvento;
-const findEvento = __mp__.modules['js/state.js'].findEvento;
-const allEventoIds = __mp__.modules['js/state.js'].allEventoIds;
-const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
-const todayISO = __mp__.modules['js/utils.js'].todayISO;
-const timestampUid = __mp__.modules['js/utils.js'].timestampUid;
-const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
-const val = __mp__.modules['js/utils.js'].val;
-const openModal = __mp__.modules['js/ui.js'].openModal;
-const toast = __mp__.modules['js/ui.js'].toast;
-const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
-const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
-/* Form: crear / editar Evento */
-
-
-
-
-
-
-const TIPOS = [
-  ['mp', 'Mantención preventiva (MP)'],
-  ['reporte_servicio', 'Reporte de servicio'],
-  ['visita_tecnica', 'Visita técnica'],
-  ['cotizacion', 'Cotización'],
-  ['oc', 'Orden de compra'],
-  ['envio', 'Envío a servicio técnico'],
-  ['solicitud', 'Solicitud de trabajo'],
-  ['recepcion', 'Recepción'],
-  ['reparacion', 'Reparación']
-];
-
-const RESULTADOS = ['Si', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'FS', 'Baja', 'NU'];
-const ESTADOS = ['operativo', 'no operativo', 'fuera_servicio'];
-
-function openEventoForm(key, editId, onSaved) {
-  const eq = state.equipos.find(e => e.key === key);
-  const existing = editId ? findEvento(key, editId) : null;
-  const ev = existing || {
-    id: timestampUid(allEventoIds()),
-    tipo: 'mp',
-    fecha: todayISO(),
-    creadoEn: new Date().toISOString(),
-    resultado: '',
-    ejecutor: state.prefs.miUsuario || '',
-    estado: '',
-    empresa: '', empresaId: '', contactoId: '',
-    nEnvio: '', nCotizacion: '', nOC: '', folio: '', folioGuia: '',
-    observacion: '',
-    archivos: []
-  };
-
-  const footer = `
-    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button><span class="grow"></span>' : ''}
-    <button class="btn cancel" type="button">Cancelar</button>
-    <button class="btn btn-primary" id="btn-save" type="submit">Guardar</button>
-  `;
-
-  const modal = openModal({
-    title: editId ? 'Editar evento' : 'Nuevo evento',
-    size: 'lg',
-    body: bodyHTML(ev, eq),
-    footer
-  });
-  renderIcons();
-  bindFields(modal.modalEl, ev);
-
-  modal.footer.querySelector('.cancel')?.addEventListener('click', modal.close);
-  modal.footer.querySelector('#btn-save').addEventListener('click', () => {
-    collect(modal.modalEl, ev);
-    if (!validate(ev)) return;
-    upsertEvento(key, ev);
-    schedulePush();
-    toast({ message: editId ? 'Evento actualizado.' : 'Evento registrado.', kind: 'ok' });
-    modal.close();
-    onSaved?.();
-  });
-  modal.footer.querySelector('#btn-del')?.addEventListener('click', async () => {
-    const ok = await confirmDialog({ title: 'Eliminar evento', message: '¿Eliminar este evento?', danger: true, confirmLabel: 'Eliminar' });
-    if (!ok) return;
-    /* Eliminación con deshacer */
-    const arr = state.eventos[key] || [];
-    const idx = arr.findIndex(x => x.id === ev.id);
-    if (idx < 0) return;
-    const removed = arr.splice(idx, 1)[0];
-    if (!arr.length) delete state.eventos[key];
-    schedulePush();
-    modal.close();
-    toast({
-      message: 'Evento eliminado.', kind: 'ok', durationMs: 6500,
-      action: { label: 'Deshacer', onClick: () => {
-        if (!state.eventos[key]) state.eventos[key] = [];
-        state.eventos[key].splice(idx, 0, removed);
-        schedulePush();
-        onSaved?.();
-      }}
-    });
-    onSaved?.();
-  });
-}
-
-function bodyHTML(ev, eq) {
-  return `
-    <div class="grid grid-2">
-      <div class="field">
-        <label class="field-label" for="ev-tipo">Tipo de evento</label>
-        <select class="select" id="ev-tipo">
-          ${TIPOS.map(([k, l]) => `<option value="${k}" ${ev.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label" for="ev-fecha">Fecha</label>
-        <input class="input" type="date" id="ev-fecha" value="${escapeHtml(ev.fecha)}" />
-      </div>
-      <div class="field">
-        <label class="field-label" for="ev-result">Resultado</label>
-        <select class="select" id="ev-result">
-          <option value="">—</option>
-          ${RESULTADOS.map(r => `<option value="${r}" ${ev.resultado === r ? 'selected' : ''}>${r}</option>`).join('')}
-        </select>
-        <span class="field-hint">Para MP: Si = OK, C1-C8 = causa, FS = fuera de servicio, Baja, NU = no ubicado.</span>
-      </div>
-      <div class="field">
-        <label class="field-label" for="ev-ejec">Ejecutor</label>
-        <input class="input" id="ev-ejec" value="${escapeHtml(ev.ejecutor)}" placeholder="Nombre del técnico" />
-      </div>
-      <div class="field">
-        <label class="field-label" for="ev-estado">Estado del equipo tras este evento</label>
-        <select class="select" id="ev-estado">
-          <option value="">—</option>
-          ${ESTADOS.map(e => `<option value="${e}" ${ev.estado === e ? 'selected' : ''}>${e}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label" for="ev-empresa">Empresa proveedora</label>
-        <input class="input" id="ev-empresa" value="${escapeHtml(ev.empresa)}" placeholder="Nombre o ID de empresa" />
-      </div>
-    </div>
-
-    <details class="mt-3">
-      <summary class="muted text-sm" style="cursor:pointer">Detalles administrativos (envío, cotización, OC, folios)</summary>
-      <div class="grid grid-2 mt-3">
-        <div class="field"><label class="field-label">N° envío</label><input class="input" id="ev-envio" value="${escapeHtml(ev.nEnvio)}" /></div>
-        <div class="field"><label class="field-label">N° cotización</label><input class="input" id="ev-cot" value="${escapeHtml(ev.nCotizacion)}" /></div>
-        <div class="field"><label class="field-label">N° OC</label><input class="input" id="ev-oc" value="${escapeHtml(ev.nOC)}" /></div>
-        <div class="field"><label class="field-label">Folio</label><input class="input" id="ev-folio" value="${escapeHtml(ev.folio)}" /></div>
-        <div class="field"><label class="field-label">Folio guía</label><input class="input" id="ev-folioguia" value="${escapeHtml(ev.folioGuia)}" /></div>
-      </div>
-    </details>
-
-    <div class="field mt-3">
-      <label class="field-label" for="ev-obs">Observación</label>
-      <textarea class="textarea" id="ev-obs" rows="5" placeholder="Describí qué se hizo, qué se encontró, qué pendientes quedan…">${escapeHtml(ev.observacion)}</textarea>
-      <span class="field-hint">Las líneas que empiecen con <code>PENDIENTES:</code> se sugerirán como tareas a crear.</span>
-    </div>
-  `;
-}
-
-function bindFields(modalEl, ev) { /* solo handlers de UI */ }
-
-function collect(modalEl, ev) {
-  ev.tipo = modalEl.querySelector('#ev-tipo').value;
-  ev.fecha = modalEl.querySelector('#ev-fecha').value;
-  ev.resultado = modalEl.querySelector('#ev-result').value || null;
-  ev.ejecutor = modalEl.querySelector('#ev-ejec').value.trim();
-  ev.estado = modalEl.querySelector('#ev-estado').value || null;
-  ev.empresa = modalEl.querySelector('#ev-empresa').value.trim();
-  ev.nEnvio = modalEl.querySelector('#ev-envio').value.trim();
-  ev.nCotizacion = modalEl.querySelector('#ev-cot').value.trim();
-  ev.nOC = modalEl.querySelector('#ev-oc').value.trim();
-  ev.folio = modalEl.querySelector('#ev-folio').value.trim();
-  ev.folioGuia = modalEl.querySelector('#ev-folioguia').value.trim();
-  ev.observacion = modalEl.querySelector('#ev-obs').value;
-}
-
-function validate(ev) {
-  if (!ev.tipo) { toast({ message: 'Falta el tipo de evento.', kind: 'warn' }); return false; }
-  if (!ev.fecha) { toast({ message: 'Falta la fecha.', kind: 'warn' }); return false; }
-  if (ev.tipo === 'mp' && !ev.resultado) { toast({ message: 'En una MP el resultado es obligatorio.', kind: 'warn' }); return false; }
-  return true;
-}
-
-__mp__.modules['js/forms/evento.js'] = { openEventoForm };
-})();
-
 /* ===== js/forms/seguimiento.js ===== */
 (function(){
 const uid = __mp__.modules['js/utils.js'].uid;
@@ -2534,21 +2602,22 @@ const openSeguimientoForm = __mp__.modules['js/forms/seguimiento.js'].openSeguim
 
 const ESTADOS = ['creado', 'abierto', 'cerrado'];
 
-function openPendienteForm(key, editId, onSaved) {
+function openPendienteForm(key, editId, onSaved, preset = null) {
   const eq = state.equipos.find(e => e.key === key);
   const existing = editId ? findPendiente(key, editId) : null;
   const p = existing ? deepCopy(existing) : {
     id: timestampUid(allPendienteIds()),
-    descripcion: '',
-    fecha: todayISO(),
+    descripcion: preset?.descripcion || '',
+    fecha: preset?.fecha || todayISO(),
     fechaCompromiso: '',
     proximoRecordatorio: '',
     fechaCierre: '',
-    ejecutor: state.prefs.miUsuario || '',
+    ejecutor: preset?.ejecutor || state.prefs.miUsuario || '',
     estado: 'abierto',
     tareas: [],
     actualizaciones: [],
-    archivos: []
+    archivos: [],
+    eventoId: preset?.eventoId || null   // trazabilidad: pendiente creado desde un evento
   };
 
   const footer = `
@@ -2604,8 +2673,14 @@ function openPendienteForm(key, editId, onSaved) {
 }
 
 function bodyHTML(p, eq) {
+  const linkBadge = p.eventoId
+    ? `<span class="badge badge-accent" title="Pendiente vinculado a un evento"><i data-lucide="link" style="width:12px;height:12px"></i> Desde evento <code>${escapeHtml(p.eventoId)}</code></span>`
+    : '';
   return `
-    ${eq ? `<div class="muted text-sm mb-3">Para: ${escapeHtml(eq.equipo || '—')} · ${escapeHtml(eq.inv || eq.id || '')}</div>` : ''}
+    ${eq ? `<div class="row mb-3" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="muted text-sm">Para: <strong>${escapeHtml(eq.equipo || '—')}</strong> · ${escapeHtml(eq.inv || eq.id || '')}</span>
+      ${linkBadge}
+    </div>` : ''}
 
     <div class="field mb-3">
       <label class="field-label" for="p-desc">Descripción <span style="color:var(--c-danger)">*</span></label>
@@ -2729,6 +2804,317 @@ function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
 __mp__.modules['js/forms/pendiente.js'] = { openPendienteForm };
 })();
 
+/* ===== js/forms/evento.js ===== */
+(function(){
+const state = __mp__.modules['js/state.js'].state;
+const upsertEvento = __mp__.modules['js/state.js'].upsertEvento;
+const findEvento = __mp__.modules['js/state.js'].findEvento;
+const allEventoIds = __mp__.modules['js/state.js'].allEventoIds;
+const escapeHtml = __mp__.modules['js/utils.js'].escapeHtml;
+const todayISO = __mp__.modules['js/utils.js'].todayISO;
+const timestampUid = __mp__.modules['js/utils.js'].timestampUid;
+const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
+const val = __mp__.modules['js/utils.js'].val;
+const openModal = __mp__.modules['js/ui.js'].openModal;
+const toast = __mp__.modules['js/ui.js'].toast;
+const confirmDialog = __mp__.modules['js/ui.js'].confirmDialog;
+const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
+const openPendienteForm = __mp__.modules['js/forms/pendiente.js'].openPendienteForm;
+/* Form: crear / editar Evento */
+
+
+
+
+
+
+
+const TIPOS = [
+  ['mp', 'Mantención preventiva (MP)'],
+  ['reporte_servicio', 'Reporte de servicio'],
+  ['visita_tecnica', 'Visita técnica'],
+  ['cotizacion', 'Cotización'],
+  ['oc', 'Orden de compra'],
+  ['envio', 'Envío a servicio técnico'],
+  ['solicitud', 'Solicitud de trabajo'],
+  ['recepcion', 'Recepción'],
+  ['reparacion', 'Reparación']
+];
+
+const RESULTADOS = ['Si', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'FS', 'Baja', 'NU'];
+const ESTADOS = ['operativo', 'no operativo', 'fuera_servicio'];
+const TIPO_LABEL = Object.fromEntries(TIPOS);
+
+function openEventoForm(key, editId, onSaved) {
+  const eq = state.equipos.find(e => e.key === key);
+  const existing = editId ? findEvento(key, editId) : null;
+  /* Nuevos eventos MP arrancan como "no oficial". Otros tipos: oficial por defecto. */
+  const ev = existing || {
+    id: timestampUid(allEventoIds()),
+    tipo: 'mp',
+    fecha: todayISO(),
+    creadoEn: new Date().toISOString(),
+    resultado: '',
+    ejecutor: state.prefs.miUsuario || '',
+    estado: '',
+    empresa: '', empresaId: '', contactoId: '',
+    nEnvio: '', nCotizacion: '', nOC: '', folio: '', folioGuia: '',
+    observacion: '',
+    archivos: [],
+    oficial: false   // por defecto al crear MP. Para otros tipos, save() lo fuerza a true.
+  };
+
+  const isOficial = (ev.oficial !== false);
+
+  const footer = `
+    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button>' : ''}
+    <button class="btn" id="btn-pend" type="button" title="Crear pendiente vinculado a este evento"><i data-lucide="check-square"></i> Crear pendiente</button>
+    <span class="grow"></span>
+    <button class="btn cancel" type="button">Cancelar</button>
+    <button class="btn btn-primary" id="btn-save" type="submit">Guardar</button>
+  `;
+
+  const modal = openModal({
+    title: editId ? 'Editar evento' : 'Nuevo evento',
+    size: 'lg',
+    body: bodyHTML(ev, eq, isOficial, editId),
+    footer
+  });
+  renderIcons();
+  bindFields(modal.modalEl, ev);
+
+  modal.footer.querySelector('.cancel')?.addEventListener('click', modal.close);
+  modal.footer.querySelector('#btn-save').addEventListener('click', () => {
+    collect(modal.modalEl, ev);
+    if (!validate(ev)) return;
+    /* Tipos != mp no participan del flujo "oficial" */
+    if (ev.tipo !== 'mp') ev.oficial = true;
+    /* Si no era oficial y el usuario cambió manualmente al checkbox, respetar */
+    upsertEvento(key, ev);
+    schedulePush();
+    toast({ message: editId ? 'Evento actualizado.' : 'Evento registrado.', kind: 'ok' });
+    modal.close();
+    onSaved?.();
+  });
+  modal.footer.querySelector('#btn-pend').addEventListener('click', () => {
+    /* Si el evento es nuevo y todavía no se guardó, guardarlo primero */
+    collect(modal.modalEl, ev);
+    if (!editId) {
+      if (ev.tipo !== 'mp') ev.oficial = true;
+      upsertEvento(key, ev);
+      schedulePush();
+    } else {
+      if (ev.tipo !== 'mp') ev.oficial = true;
+      upsertEvento(key, ev);
+    }
+    modal.close();
+    const preset = {
+      descripcion: presetDescripcionFromEvento(ev),
+      ejecutor: ev.ejecutor || '',
+      eventoId: ev.id,
+      fecha: todayISO()
+    };
+    openPendienteForm(key, null, () => { onSaved?.(); }, preset);
+  });
+  modal.footer.querySelector('#btn-del')?.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Eliminar evento', message: '¿Eliminar este evento?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
+    const arr = state.eventos[key] || [];
+    const idx = arr.findIndex(x => x.id === ev.id);
+    if (idx < 0) return;
+    const removed = arr.splice(idx, 1)[0];
+    if (!arr.length) delete state.eventos[key];
+    schedulePush();
+    modal.close();
+    toast({
+      message: 'Evento eliminado.', kind: 'ok', durationMs: 6500,
+      action: { label: 'Deshacer', onClick: () => {
+        if (!state.eventos[key]) state.eventos[key] = [];
+        state.eventos[key].splice(idx, 0, removed);
+        schedulePush();
+        onSaved?.();
+      }}
+    });
+    onSaved?.();
+  });
+}
+
+function presetDescripcionFromEvento(ev) {
+  const tipoLbl = TIPO_LABEL[ev.tipo] || ev.tipo || 'evento';
+  const fecha = ev.fecha ? ` del ${ev.fecha}` : '';
+  if (ev.observacion && ev.observacion.length <= 120) return ev.observacion;
+  return `Seguimiento de ${tipoLbl}${fecha}`;
+}
+
+function bodyHTML(ev, eq, isOficial, editId) {
+  const oficialBadge = (ev.tipo === 'mp')
+    ? (isOficial
+        ? `<span class="badge badge-ok" title="Reflejado en el archivo maestro"><i data-lucide="badge-check" style="width:12px;height:12px"></i> Oficial</span>`
+        : `<span class="badge badge-warn" title="Aún no aparece en el archivo maestro; se promoverá al cargar un maestro que lo refleje"><i data-lucide="clock" style="width:12px;height:12px"></i> No oficial</span>`)
+    : '';
+  return `
+    ${eq ? `<div class="row mb-3" style="gap:8px;flex-wrap:wrap">
+      <span class="muted text-sm">Equipo: <strong>${escapeHtml(eq.equipo || '—')}</strong> · ${escapeHtml(eq.inv || eq.id || '')}</span>
+      ${oficialBadge}
+    </div>` : ''}
+
+    <div class="grid grid-2">
+      <div class="field">
+        <label class="field-label" for="ev-tipo">Tipo de evento</label>
+        <select class="select" id="ev-tipo">
+          ${TIPOS.map(([k, l]) => `<option value="${k}" ${ev.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-fecha">Fecha</label>
+        <input class="input" type="date" id="ev-fecha" value="${escapeHtml(ev.fecha)}" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-result">Resultado</label>
+        <select class="select" id="ev-result">
+          <option value="">—</option>
+          ${RESULTADOS.map(r => `<option value="${r}" ${ev.resultado === r ? 'selected' : ''}>${r}</option>`).join('')}
+        </select>
+        <span class="field-hint">Para MP: Si = OK, C1-C8 = causa, FS = fuera de servicio, Baja, NU = no ubicado.</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-ejec">Ejecutor</label>
+        <input class="input" id="ev-ejec" value="${escapeHtml(ev.ejecutor)}" placeholder="Nombre del técnico" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-estado">Estado del equipo tras este evento</label>
+        <select class="select" id="ev-estado">
+          <option value="">—</option>
+          ${ESTADOS.map(e => `<option value="${e}" ${ev.estado === e ? 'selected' : ''}>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="ev-empresa">Empresa proveedora</label>
+        <input class="input" id="ev-empresa" value="${escapeHtml(ev.empresa)}" placeholder="Nombre o ID de empresa" />
+      </div>
+    </div>
+
+    <details class="mt-3">
+      <summary class="muted text-sm" style="cursor:pointer">Detalles administrativos (envío, cotización, OC, folios)</summary>
+      <div class="grid grid-2 mt-3">
+        <div class="field"><label class="field-label">N° envío</label><input class="input" id="ev-envio" value="${escapeHtml(ev.nEnvio)}" /></div>
+        <div class="field"><label class="field-label">N° cotización</label><input class="input" id="ev-cot" value="${escapeHtml(ev.nCotizacion)}" /></div>
+        <div class="field"><label class="field-label">N° OC</label><input class="input" id="ev-oc" value="${escapeHtml(ev.nOC)}" /></div>
+        <div class="field"><label class="field-label">Folio</label><input class="input" id="ev-folio" value="${escapeHtml(ev.folio)}" /></div>
+        <div class="field"><label class="field-label">Folio guía</label><input class="input" id="ev-folioguia" value="${escapeHtml(ev.folioGuia)}" /></div>
+      </div>
+    </details>
+
+    <div class="field mt-3">
+      <label class="field-label" for="ev-obs">Observación</label>
+      <textarea class="textarea" id="ev-obs" rows="5" placeholder="Describí qué se hizo, qué se encontró, qué pendientes quedan…">${escapeHtml(ev.observacion)}</textarea>
+      <span class="field-hint">Si quedan tareas pendientes, usá el botón <strong>Crear pendiente</strong>.</span>
+    </div>
+
+    <div class="mt-3 text-xs muted">
+      ${ev.creadoEn ? `Registrado: ${new Date(ev.creadoEn).toLocaleString('es-CL')}` : ''}
+      ${editId ? ` · ID interno: <code>${escapeHtml(ev.id)}</code>` : ''}
+    </div>
+  `;
+}
+
+function bindFields(modalEl, ev) { /* sin handlers extra por ahora */ }
+
+function collect(modalEl, ev) {
+  ev.tipo = modalEl.querySelector('#ev-tipo').value;
+  ev.fecha = modalEl.querySelector('#ev-fecha').value;
+  ev.resultado = modalEl.querySelector('#ev-result').value || null;
+  ev.ejecutor = modalEl.querySelector('#ev-ejec').value.trim();
+  ev.estado = modalEl.querySelector('#ev-estado').value || null;
+  ev.empresa = modalEl.querySelector('#ev-empresa').value.trim();
+  ev.nEnvio = modalEl.querySelector('#ev-envio').value.trim();
+  ev.nCotizacion = modalEl.querySelector('#ev-cot').value.trim();
+  ev.nOC = modalEl.querySelector('#ev-oc').value.trim();
+  ev.folio = modalEl.querySelector('#ev-folio').value.trim();
+  ev.folioGuia = modalEl.querySelector('#ev-folioguia').value.trim();
+  ev.observacion = modalEl.querySelector('#ev-obs').value;
+}
+
+function validate(ev) {
+  if (!ev.tipo) { toast({ message: 'Falta el tipo de evento.', kind: 'warn' }); return false; }
+  if (!ev.fecha) { toast({ message: 'Falta la fecha.', kind: 'warn' }); return false; }
+  if (ev.tipo === 'mp' && !ev.resultado) { toast({ message: 'En una MP el resultado es obligatorio.', kind: 'warn' }); return false; }
+  return true;
+}
+
+__mp__.modules['js/forms/evento.js'] = { openEventoForm };
+})();
+
+/* ===== js/router.js ===== */
+(function(){
+
+/* Router de vistas minimal — hash-based; persiste filtros via hash params */
+
+const routes = new Map();
+let currentView = null;
+
+function registerRoute(name, renderFn) {
+  routes.set(name, renderFn);
+}
+
+function navigate(name, params) {
+  const hash = '#' + name + (params ? '?' + new URLSearchParams(params).toString() : '');
+  if (location.hash !== hash) location.hash = hash;
+  else render();
+}
+
+function getCurrentView() { return currentView; }
+
+function getRouteParams() {
+  const h = location.hash.slice(1);
+  const q = h.indexOf('?');
+  if (q < 0) return {};
+  return Object.fromEntries(new URLSearchParams(h.slice(q + 1)));
+}
+
+function render() {
+  const h = location.hash.slice(1) || 'hoy';
+  const [name, query] = h.split('?');
+  const params = query ? Object.fromEntries(new URLSearchParams(query)) : {};
+  const fn = routes.get(name) || routes.get('hoy');
+  currentView = name;
+  /* Mark active sidebar item */
+  document.querySelectorAll('[data-route]').forEach(el => {
+    el.setAttribute('aria-current', el.dataset.route === name ? 'page' : 'false');
+  });
+  /* Render into content area */
+  const contentEl = document.getElementById('view-root');
+  if (contentEl) {
+    contentEl.innerHTML = '<div class="view"></div>';
+    try { fn(contentEl.firstElementChild, params); }
+    catch (err) {
+      console.error(err);
+      contentEl.firstElementChild.innerHTML = `<div class="empty"><div class="empty-title">Error al renderizar</div><div class="empty-text">${err.message}</div></div>`;
+    }
+  }
+  /* Mark title in header */
+  const titleEl = document.getElementById('header-title-text');
+  if (titleEl) titleEl.textContent = ROUTE_TITLES[name] || name;
+}
+
+const ROUTE_TITLES = {
+  hoy: 'Hoy',
+  equipos: 'Equipos',
+  pendientes: 'Pendientes',
+  verificacion: 'Verificación de carga',
+  agenda: 'Agenda',
+  historial: 'Historial'
+};
+
+function initRouter() {
+  window.addEventListener('hashchange', render);
+  render();
+}
+
+function refreshActiveView() { render(); }
+
+__mp__.modules['js/router.js'] = { registerRoute, navigate, getCurrentView, getRouteParams, initRouter, refreshActiveView };
+})();
+
 /* ===== js/forms/equipo-detail.js ===== */
 (function(){
 const state = __mp__.modules['js/state.js'].state;
@@ -2740,7 +3126,9 @@ const openModal = __mp__.modules['js/ui.js'].openModal;
 const getEquipoEstadoExtended = __mp__.modules['js/data/excel.js'].getEquipoEstadoExtended;
 const openEventoForm = __mp__.modules['js/forms/evento.js'].openEventoForm;
 const openPendienteForm = __mp__.modules['js/forms/pendiente.js'].openPendienteForm;
+const navigate = __mp__.modules['js/router.js'].navigate;
 /* Modal "Detalle de equipo" con tabs Eventos / Pendientes / Info */
+
 
 
 
@@ -2807,8 +3195,21 @@ function openEquipoDetail(key) {
   const bindActions = (key) => {
     modal.modalEl.querySelector('#btn-new-ev')?.addEventListener('click', () => openEventoForm(key, null, renderBody));
     modal.modalEl.querySelector('#btn-new-pe')?.addEventListener('click', () => openPendienteForm(key, null, renderBody));
+    modal.modalEl.querySelector('#btn-historial')?.addEventListener('click', () => { modal.close(); navigate('historial', { key }); });
     modal.modalEl.querySelectorAll('[data-edit-ev]').forEach(el => el.addEventListener('click', () => openEventoForm(key, el.dataset.editEv, renderBody)));
     modal.modalEl.querySelectorAll('[data-edit-pe]').forEach(el => el.addEventListener('click', () => openPendienteForm(key, el.dataset.editPe, renderBody)));
+    modal.modalEl.querySelectorAll('[data-pend-from-ev]').forEach(el => el.addEventListener('click', () => {
+      const eid = el.dataset.pendFromEv;
+      const ev = (state.eventos[key] || []).find(x => x.id === eid);
+      if (!ev) return;
+      const tipoLbl = ({mp:'MP',reporte_servicio:'Reporte',visita_tecnica:'Visita',cotizacion:'Cotización',oc:'OC',envio:'Envío',solicitud:'Solicitud',recepcion:'Recepción',reparacion:'Reparación'}[ev.tipo]) || ev.tipo;
+      const preset = {
+        descripcion: ev.observacion && ev.observacion.length <= 120 ? ev.observacion : `Seguimiento de ${tipoLbl}${ev.fecha ? ' del '+ev.fecha : ''}`,
+        ejecutor: ev.ejecutor || '',
+        eventoId: ev.id
+      };
+      openPendienteForm(key, null, renderBody, preset);
+    }));
   };
 
   modal = openModal({
@@ -2831,21 +3232,41 @@ function eventosPanel(key, eventos) {
   return `
     <div class="row-between mb-3">
       <span class="muted text-sm">${eventos.length} eventos</span>
-      <button class="btn btn-primary btn-sm" id="btn-new-ev"><i data-lucide="plus"></i> Nuevo evento</button>
+      <div class="row">
+        <button class="btn btn-sm" id="btn-historial"><i data-lucide="history"></i> Ver historial</button>
+        <button class="btn btn-primary btn-sm" id="btn-new-ev"><i data-lucide="plus"></i> Nuevo evento</button>
+      </div>
     </div>
     <div class="col">
-      ${eventos.map(ev => `
+      ${eventos.map(ev => {
+        const isMp = ev.tipo === 'mp';
+        const isOficial = ev.oficial !== false;
+        const oficialBadge = isMp
+          ? (isOficial
+              ? `<span class="badge badge-ok" title="Reflejado en el archivo maestro"><i data-lucide="badge-check" style="width:12px;height:12px"></i> Oficial</span>`
+              : `<span class="badge badge-warn" title="Aún no aparece en el archivo maestro"><i data-lucide="clock" style="width:12px;height:12px"></i> No oficial</span>`)
+          : '';
+        const creado = ev.creadoEn ? new Date(ev.creadoEn).toLocaleString('es-CL') : '';
+        return `
         <div class="card" style="padding:12px">
-          <div class="row-between">
+          <div class="row-between" style="flex-wrap:wrap;gap:8px">
             <div>
-              <div class="semibold">${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</div>
-              <div class="text-xs muted">${fmtDate(ev.fecha)} ${ev.ejecutor ? '· ' + escapeHtml(ev.ejecutor) : ''} ${ev.resultado ? '· ' + escapeHtml(ev.resultado) : ''}</div>
+              <div class="row" style="gap:6px;flex-wrap:wrap">
+                <span class="semibold">${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</span>
+                ${oficialBadge}
+                ${ev.resultado ? `<span class="badge badge-mono">${escapeHtml(ev.resultado)}</span>` : ''}
+              </div>
+              <div class="text-xs muted mt-1">${fmtDate(ev.fecha)} ${ev.ejecutor ? '· ' + escapeHtml(ev.ejecutor) : ''} ${creado ? '· registrado ' + escapeHtml(creado) : ''}</div>
             </div>
-            <button class="btn btn-sm" data-edit-ev="${escapeHtml(ev.id)}"><i data-lucide="pencil"></i></button>
+            <div class="row">
+              <button class="btn btn-sm" data-pend-from-ev="${escapeHtml(ev.id)}" title="Crear pendiente desde este evento"><i data-lucide="check-square"></i> Pendiente</button>
+              <button class="btn btn-sm" data-edit-ev="${escapeHtml(ev.id)}" title="Editar"><i data-lucide="pencil"></i></button>
+            </div>
           </div>
           ${ev.observacion ? `<div class="mt-2 text-sm">${escapeHtml(ev.observacion).replace(/\n/g, '<br>')}</div>` : ''}
         </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
   `;
 }
@@ -3021,77 +3442,6 @@ function render() {
 }
 
 __mp__.modules['js/forms/gas-settings.js'] = { openGasSettings };
-})();
-
-/* ===== js/router.js ===== */
-(function(){
-
-/* Router de vistas minimal — hash-based; persiste filtros via hash params */
-
-const routes = new Map();
-let currentView = null;
-
-function registerRoute(name, renderFn) {
-  routes.set(name, renderFn);
-}
-
-function navigate(name, params) {
-  const hash = '#' + name + (params ? '?' + new URLSearchParams(params).toString() : '');
-  if (location.hash !== hash) location.hash = hash;
-  else render();
-}
-
-function getCurrentView() { return currentView; }
-
-function getRouteParams() {
-  const h = location.hash.slice(1);
-  const q = h.indexOf('?');
-  if (q < 0) return {};
-  return Object.fromEntries(new URLSearchParams(h.slice(q + 1)));
-}
-
-function render() {
-  const h = location.hash.slice(1) || 'hoy';
-  const [name, query] = h.split('?');
-  const params = query ? Object.fromEntries(new URLSearchParams(query)) : {};
-  const fn = routes.get(name) || routes.get('hoy');
-  currentView = name;
-  /* Mark active sidebar item */
-  document.querySelectorAll('[data-route]').forEach(el => {
-    el.setAttribute('aria-current', el.dataset.route === name ? 'page' : 'false');
-  });
-  /* Render into content area */
-  const contentEl = document.getElementById('view-root');
-  if (contentEl) {
-    contentEl.innerHTML = '<div class="view"></div>';
-    try { fn(contentEl.firstElementChild, params); }
-    catch (err) {
-      console.error(err);
-      contentEl.firstElementChild.innerHTML = `<div class="empty"><div class="empty-title">Error al renderizar</div><div class="empty-text">${err.message}</div></div>`;
-    }
-  }
-  /* Mark title in header */
-  const titleEl = document.getElementById('header-title-text');
-  if (titleEl) titleEl.textContent = ROUTE_TITLES[name] || name;
-}
-
-const ROUTE_TITLES = {
-  hoy: 'Hoy',
-  equipos: 'Equipos',
-  pendientes: 'Pendientes',
-  verificacion: 'Verificación de carga',
-  agenda: 'Agenda',
-  historial: 'Historial'
-};
-
-function initRouter() {
-  window.addEventListener('hashchange', render);
-  render();
-}
-
-function refreshActiveView() { render(); }
-
-__mp__.modules['js/router.js'] = { registerRoute, navigate, getCurrentView, getRouteParams, initRouter, refreshActiveView };
 })();
 
 /* ===== js/views/hoy.js ===== */
@@ -3776,6 +4126,12 @@ function renderVerificacion(root) {
   const v = state.verif || {};
   const issues = computeIssues();
   const issuesCount = issues.faltaArchivo.length + issues.distinto.length;
+  /* Eventos MP marcados como no oficiales (esperando reflejarse en el próximo maestro) */
+  let noOficCount = 0, oficCount = 0;
+  Object.values(state.eventos).forEach(arr => (arr||[]).forEach(ev => {
+    if (ev.tipo !== 'mp') return;
+    if (ev.oficial === false) noOficCount++; else oficCount++;
+  }));
 
   root.innerHTML = `
     <div class="view-header">
@@ -3789,6 +4145,12 @@ function renderVerificacion(root) {
       ${kpi('Equipos válidos', v.validos || 0)}
       ${kpi('Familias', (v.familias || []).length)}
       ${kpi('Filas registro', v.regRows || 0)}
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      ${kpi('Eventos MP oficiales', oficCount)}
+      ${kpiKind('Eventos MP no oficiales', noOficCount, noOficCount > 0 ? 'warn' : '', 'Eventos creados en la app que aún no aparecen en el archivo maestro. Se promoverán automáticamente al cargar un maestro que los refleje.')}
+      ${kpi('Discrepancias archivo↔app', issuesCount)}
     </div>
 
     ${(v.headerWarnings && v.headerWarnings.length) ? `
@@ -3871,6 +4233,13 @@ function renderVerificacion(root) {
 
 function kpi(label, n) {
   return `<div class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${n}</div></div>`;
+}
+function kpiKind(label, n, kind, hint) {
+  return `<div class="kpi ${kind ? 'kpi-' + kind : ''}" title="${escapeHtml(hint || '')}">
+    <div class="kpi-label">${escapeHtml(label)}</div>
+    <div class="kpi-value">${n}</div>
+    ${hint ? `<div class="kpi-note">${escapeHtml(hint)}</div>` : ''}
+  </div>`;
 }
 
 function issueRow(i, kind) {
@@ -4363,7 +4732,9 @@ const renderIcons = __mp__.modules['js/utils.js'].renderIcons;
 const todayISO = __mp__.modules['js/utils.js'].todayISO;
 const emptyState = __mp__.modules['js/ui.js'].emptyState;
 const navigate = __mp__.modules['js/router.js'].navigate;
+const exportHistorialXLSX = __mp__.modules['js/export.js'].exportHistorialXLSX;
 /* Vista: Historial — eventos de un equipo, filtrable y exportable */
+
 
 
 
@@ -4389,27 +4760,36 @@ function renderHistorial(root, params = {}) {
     renderIcons();
     return;
   }
-  let eventos = (state.eventos[key] || []).slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+  /* Orden cronológico ASC para que el ID correlativo coincida con el export y con GAS */
+  const eventos = (state.eventos[key] || []).slice().sort((a,b)=> String(a.creadoEn || a.fecha || '').localeCompare(b.creadoEn || b.fecha || ''));
   const q = (params.q || '').toLowerCase();
   const tipo = params.tipo || '';
   const desde = params.desde || '';
   const hasta = params.hasta || '';
+  const onlyNoOficial = params.no_oficial === '1';
   let list = eventos.filter(ev => {
     if (q) {
-      const hay = (ev.observacion + ' ' + ev.ejecutor + ' ' + ev.empresa).toLowerCase();
+      const hay = ((ev.observacion||'') + ' ' + (ev.ejecutor||'') + ' ' + (ev.empresa||'')).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     if (tipo && ev.tipo !== tipo) return false;
     if (desde && ev.fecha < desde) return false;
     if (hasta && ev.fecha > hasta) return false;
+    if (onlyNoOficial && !(ev.tipo === 'mp' && ev.oficial === false)) return false;
     return true;
   });
+
+  /* Mapa id → correlativo (1..N) según el orden cronológico de TODOS los eventos del equipo */
+  const corr = new Map();
+  eventos.forEach((ev, i) => corr.set(ev.id, i + 1));
+
+  const noOficCount = eventos.filter(ev => ev.tipo === 'mp' && ev.oficial === false).length;
 
   root.innerHTML = `
     <div class="view-header">
       <div>
         <h2>${escapeHtml(eq.equipo || '—')} · Historial</h2>
-        <p class="muted">${escapeHtml(eq.inv || eq.id || '')} · ${escapeHtml(eq.servicio || '')} · ${eventos.length} eventos totales</p>
+        <p class="muted">${escapeHtml(eq.inv || eq.id || '')} · ${escapeHtml(eq.servicio || '')} · ${eventos.length} eventos totales${noOficCount ? ` · <span style="color:var(--c-warn)">${noOficCount} no oficiales</span>` : ''}</p>
       </div>
       <div class="row">
         <button class="btn" id="btn-back"><i data-lucide="arrow-left"></i> Volver</button>
@@ -4423,54 +4803,61 @@ function renderHistorial(root, params = {}) {
         <option value="">Tipo (todos)</option>
         ${Object.entries(TIPO_LABEL).map(([k,l]) => `<option value="${k}" ${tipo===k?'selected':''}>${l}</option>`).join('')}
       </select>
-      <input class="input" type="date" id="h-desde" value="${escapeHtml(desde)}" />
-      <input class="input" type="date" id="h-hasta" value="${escapeHtml(hasta)}" />
+      <input class="input" type="date" id="h-desde" value="${escapeHtml(desde)}" title="Desde" />
+      <input class="input" type="date" id="h-hasta" value="${escapeHtml(hasta)}" title="Hasta" />
+      <label class="check"><input type="checkbox" id="h-noofic" ${onlyNoOficial ? 'checked' : ''} /> Solo no oficiales</label>
     </div>
 
     ${list.length === 0 ? emptyState({ icon: 'inbox', title: 'Sin eventos para esos filtros', text: '' }) : `
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Resultado</th><th>Ejecutor</th><th>Empresa</th><th>Observación</th></tr></thead>
-          <tbody>${list.map(ev => `
+          <thead>
             <tr>
+              <th title="ID correlativo (igual al que usa la hoja Sheets)">ID</th>
+              <th>Fecha</th>
+              <th>Fecha registro</th>
+              <th>Tipo</th>
+              <th>Resultado</th>
+              <th>Oficial</th>
+              <th>Ejecutor</th>
+              <th>Empresa</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>${list.map(ev => {
+            const isMp = ev.tipo === 'mp';
+            const isOf = ev.oficial !== false;
+            return `
+            <tr>
+              <td class="mono">${corr.get(ev.id) || '—'}</td>
               <td class="mono">${fmtDate(ev.fecha)}</td>
+              <td class="mono">${ev.creadoEn ? escapeHtml(new Date(ev.creadoEn).toLocaleString('es-CL', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })) : '—'}</td>
               <td>${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</td>
               <td><code>${escapeHtml(ev.resultado || '—')}</code></td>
+              <td>${isMp ? (isOf ? '<span class="badge badge-ok">Sí</span>' : '<span class="badge badge-warn">No</span>') : '<span class="muted">—</span>'}</td>
               <td>${val(ev.ejecutor)}</td>
               <td>${val(ev.empresa)}</td>
               <td style="max-width:380px">${escapeHtml(ev.observacion || '').replace(/\n/g,'<br>')}</td>
             </tr>
-          `).join('')}</tbody>
+            `;
+          }).join('')}</tbody>
         </table>
       </div>
     `}
   `;
   renderIcons();
   root.querySelector('#btn-back').addEventListener('click', () => history.back());
-  root.querySelector('#btn-export').addEventListener('click', () => exportXLSX(eq, list));
+  root.querySelector('#btn-export').addEventListener('click', () => exportHistorialXLSX(eq, list));
   const sync = () => navigate('historial', {
     key,
     q: root.querySelector('#h-q').value,
     tipo: root.querySelector('#h-tipo').value,
     desde: root.querySelector('#h-desde').value,
-    hasta: root.querySelector('#h-hasta').value
+    hasta: root.querySelector('#h-hasta').value,
+    no_oficial: root.querySelector('#h-noofic').checked ? '1' : ''
   });
   root.querySelector('#h-q').addEventListener('input', () => { clearTimeout(window.__hq); window.__hq = setTimeout(sync, 200); });
-  ['h-tipo','h-desde','h-hasta'].forEach(id => root.querySelector('#'+id).addEventListener('change', sync));
-}
-
-function exportXLSX(eq, list) {
-  if (!window.XLSX) return;
-  const wb = window.XLSX.utils.book_new();
-  const rows = [['Fecha','Tipo','Resultado','Ejecutor','Empresa','N° OC','N° Cotización','Observación']];
-  list.forEach(ev => rows.push([
-    ev.fecha, TIPO_LABEL[ev.tipo] || ev.tipo, ev.resultado || '',
-    ev.ejecutor || '', ev.empresa || '', ev.nOC || '', ev.nCotizacion || '', ev.observacion || ''
-  ]));
-  const ws = window.XLSX.utils.aoa_to_sheet(rows);
-  window.XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-  const name = (eq.equipo || eq.key).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
-  window.XLSX.writeFile(wb, `historial_${name}_${todayISO()}.xlsx`);
+  ['h-tipo','h-desde','h-hasta','h-noofic'].forEach(id => root.querySelector('#'+id).addEventListener('change', sync));
 }
 
 __mp__.modules['js/views/historial.js'] = { renderHistorial };
@@ -4508,6 +4895,7 @@ const uploadMaster = __mp__.modules['js/data/gas.js'].uploadMaster;
 const schedulePush = __mp__.modules['js/data/gas.js'].schedulePush;
 const loadFile = __mp__.modules['js/data/excel.js'].loadFile;
 const loadFromBytes = __mp__.modules['js/data/excel.js'].loadFromBytes;
+const exportXLSX = __mp__.modules['js/export.js'].exportXLSX;
 const renderHoy = __mp__.modules['js/views/hoy.js'].renderHoy;
 const renderEquipos = __mp__.modules['js/views/equipos.js'].renderEquipos;
 const renderPendientes = __mp__.modules['js/views/pendientes.js'].renderPendientes;
@@ -4516,6 +4904,7 @@ const renderAgenda = __mp__.modules['js/views/agenda.js'].renderAgenda;
 const renderHistorial = __mp__.modules['js/views/historial.js'].renderHistorial;
 const openGasSettings = __mp__.modules['js/forms/gas-settings.js'].openGasSettings;
 /* Entry point — bootstrap del app */
+
 
 
 
@@ -4593,6 +4982,11 @@ function bindHeader() {
 
   document.getElementById('menu-gas')?.addEventListener('click', () => { closeMenu(); openGasSettings(); });
   document.getElementById('menu-user')?.addEventListener('click', () => { closeMenu(); openUserPref(); });
+  document.getElementById('menu-export-xlsx')?.addEventListener('click', () => {
+    closeMenu();
+    try { exportXLSX(); toast({ message: 'Excel exportado.', kind: 'ok' }); }
+    catch (err) { toast({ message: 'No se pudo exportar: ' + err.message, kind: 'danger' }); }
+  });
   document.getElementById('menu-export-json')?.addEventListener('click', () => { closeMenu(); exportJSON(); });
   document.getElementById('menu-reset')?.addEventListener('click', async () => {
     closeMenu();
@@ -4657,6 +5051,17 @@ async function onFileChosen(e) {
     hideLoading();
     if (parsed.warnings.length) toast({ message: `Archivo cargado con ${parsed.warnings.length} advertencias. Revisá "Verificación".`, kind: 'warn', durationMs: 6000 });
     else toast({ message: 'Archivo cargado.', kind: 'ok' });
+    /* Reconciliación: si había eventos "no oficiales" que ahora aparecen en el maestro, promoverlos */
+    const rec = parsed.reconciled;
+    if (rec && rec.promoted > 0) {
+      toast({
+        message: `${rec.promoted} ${rec.promoted === 1 ? 'evento promovido a oficial' : 'eventos promovidos a oficiales'} (aparecen en el nuevo maestro).`,
+        kind: 'ok', durationMs: 7000
+      });
+      schedulePush();
+    } else if (rec && rec.total > 0) {
+      toast({ message: `${rec.total} eventos siguen como no oficiales (no aparecen aún en el maestro).`, kind: 'info', durationMs: 5000 });
+    }
     refreshActiveView();
     updateBadges();
   } catch (err) {

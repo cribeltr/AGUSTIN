@@ -145,6 +145,19 @@
 
 ---
 
+## Iteración 1.1 — Estado "Oficial" en eventos MP y pendientes desde evento
+
+| Cambio | Detalle | Por qué |
+|---|---|---|
+| **Estado "Oficial / No oficial" en eventos MP** | Cada evento MP nuevo nace como **No oficial** (badge ámbar visible). Al cargar un nuevo maestro, la app reconcilia automáticamente: si `regRes[mes] === resultado` del evento, lo promueve a **Oficial** (badge verde). El usuario ve un toast: "N eventos promovidos a oficiales". | Cierra el círculo de trazabilidad: el técnico carga el evento en la app antes de que aparezca en el maestro Excel, y el sistema confirma cuándo el maestro lo absorbe. Reduce dudas sobre qué quedó "registrado de verdad". |
+| **Crear pendiente desde un evento** | Botón "Crear pendiente" en el form de evento y en cada tarjeta de evento del detalle de equipo. Precarga `descripcion` (de la observación, si es corta), `ejecutor` y referencia `eventoId` para trazabilidad. | Evita re-tipear contexto. Permite pasar de "registré algo que pasó" a "y queda esto por hacer" sin fricción. |
+| **Export XLSX completo** (menú ⋯) | Genera hojas `Eventos`, `Pendientes`, `Equipos` con la misma nomenclatura del backend (`HEADERS[SHEET_EVENTOS]`), IDs correlativos 1..N tras ordenar por `creadoEn` ASC, columna "Fecha registro" y nueva columna "Oficial" (Sí/No). | Intercambiabilidad con la hoja Sheets: el .xlsx exportado tiene el mismo orden y columnas que la pestaña Eventos del backend, lo que facilita comparaciones y validación cruzada. |
+| **Historial: columnas extra** | ID correlativo, Fecha registro, Oficial. Checkbox "Solo no oficiales" para filtrar rápidamente. | Misma motivación que arriba — el historial es donde el usuario investiga; debe ver lo mismo que ve quien consulta la Sheet. |
+| **Verificación: KPIs nuevos** | "Eventos MP oficiales" / "Eventos MP no oficiales" / "Discrepancias archivo↔app" como segunda fila de KPIs. | Da visibilidad al **inventario de eventos pendientes de confirmar en el maestro** — es el dato que motivó toda la feature. |
+| **Backend `Code.gs` v3.12** | Añade columna `Oficial` a `HEADERS[SHEET_EVENTOS]` y emite `Sí`/`No` en `replaceAll_`. Ejecutar `migrate()` para sumar la columna a hojas existentes (no destructivo). | Asegura paridad entre cliente y backend. |
+| **No migración destructiva** | Eventos sin campo `oficial` se tratan como oficiales (`ev.oficial !== false`). Sin migración explícita. | Datos pre-feature no quedan en limbo: si ya existían, se asumen registrados (el flujo histórico era manual antes). |
+| **`eventoId` en pendientes** | Pendientes creados desde un evento llevan `eventoId` referencial; visible como badge "Desde evento <id>" en el form. | Trazabilidad bidireccional. |
+
 ## Lo que **no** se cambió (intencional)
 
 - **Nomenclatura del dominio**: "Servicio", "Familia", "Pendiente", "Seguimiento", "C1-C8", "FS", "Baja", "NU". Es el vocabulario interno del hospital — cambiar términos rompería la continuidad mental con planillas, oficios, correos.

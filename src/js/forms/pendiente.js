@@ -8,21 +8,22 @@ import { openSeguimientoForm } from './seguimiento.js';
 
 const ESTADOS = ['creado', 'abierto', 'cerrado'];
 
-export function openPendienteForm(key, editId, onSaved) {
+export function openPendienteForm(key, editId, onSaved, preset = null) {
   const eq = state.equipos.find(e => e.key === key);
   const existing = editId ? findPendiente(key, editId) : null;
   const p = existing ? deepCopy(existing) : {
     id: timestampUid(allPendienteIds()),
-    descripcion: '',
-    fecha: todayISO(),
+    descripcion: preset?.descripcion || '',
+    fecha: preset?.fecha || todayISO(),
     fechaCompromiso: '',
     proximoRecordatorio: '',
     fechaCierre: '',
-    ejecutor: state.prefs.miUsuario || '',
+    ejecutor: preset?.ejecutor || state.prefs.miUsuario || '',
     estado: 'abierto',
     tareas: [],
     actualizaciones: [],
-    archivos: []
+    archivos: [],
+    eventoId: preset?.eventoId || null   // trazabilidad: pendiente creado desde un evento
   };
 
   const footer = `
@@ -78,8 +79,14 @@ export function openPendienteForm(key, editId, onSaved) {
 }
 
 function bodyHTML(p, eq) {
+  const linkBadge = p.eventoId
+    ? `<span class="badge badge-accent" title="Pendiente vinculado a un evento"><i data-lucide="link" style="width:12px;height:12px"></i> Desde evento <code>${escapeHtml(p.eventoId)}</code></span>`
+    : '';
   return `
-    ${eq ? `<div class="muted text-sm mb-3">Para: ${escapeHtml(eq.equipo || '—')} · ${escapeHtml(eq.inv || eq.id || '')}</div>` : ''}
+    ${eq ? `<div class="row mb-3" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="muted text-sm">Para: <strong>${escapeHtml(eq.equipo || '—')}</strong> · ${escapeHtml(eq.inv || eq.id || '')}</span>
+      ${linkBadge}
+    </div>` : ''}
 
     <div class="field mb-3">
       <label class="field-label" for="p-desc">Descripción <span style="color:var(--c-danger)">*</span></label>

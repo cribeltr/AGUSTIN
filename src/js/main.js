@@ -6,6 +6,7 @@ import { renderIcons, fmtDate, fmtRelative, todayISO } from './utils.js';
 import { initRouter, registerRoute, navigate, refreshActiveView } from './router.js';
 import { initGas, gas, onGasStatus, getMasterMeta, fetchMaster, uploadMaster, schedulePush } from './data/gas.js';
 import { loadFile, loadFromBytes } from './data/excel.js';
+import { exportXLSX } from './export.js';
 import { renderHoy } from './views/hoy.js';
 import { renderEquipos } from './views/equipos.js';
 import { renderPendientes } from './views/pendientes.js';
@@ -76,6 +77,11 @@ function bindHeader() {
 
   document.getElementById('menu-gas')?.addEventListener('click', () => { closeMenu(); openGasSettings(); });
   document.getElementById('menu-user')?.addEventListener('click', () => { closeMenu(); openUserPref(); });
+  document.getElementById('menu-export-xlsx')?.addEventListener('click', () => {
+    closeMenu();
+    try { exportXLSX(); toast({ message: 'Excel exportado.', kind: 'ok' }); }
+    catch (err) { toast({ message: 'No se pudo exportar: ' + err.message, kind: 'danger' }); }
+  });
   document.getElementById('menu-export-json')?.addEventListener('click', () => { closeMenu(); exportJSON(); });
   document.getElementById('menu-reset')?.addEventListener('click', async () => {
     closeMenu();
@@ -140,6 +146,17 @@ async function onFileChosen(e) {
     hideLoading();
     if (parsed.warnings.length) toast({ message: `Archivo cargado con ${parsed.warnings.length} advertencias. Revisá "Verificación".`, kind: 'warn', durationMs: 6000 });
     else toast({ message: 'Archivo cargado.', kind: 'ok' });
+    /* Reconciliación: si había eventos "no oficiales" que ahora aparecen en el maestro, promoverlos */
+    const rec = parsed.reconciled;
+    if (rec && rec.promoted > 0) {
+      toast({
+        message: `${rec.promoted} ${rec.promoted === 1 ? 'evento promovido a oficial' : 'eventos promovidos a oficiales'} (aparecen en el nuevo maestro).`,
+        kind: 'ok', durationMs: 7000
+      });
+      schedulePush();
+    } else if (rec && rec.total > 0) {
+      toast({ message: `${rec.total} eventos siguen como no oficiales (no aparecen aún en el maestro).`, kind: 'info', durationMs: 5000 });
+    }
     refreshActiveView();
     updateBadges();
   } catch (err) {

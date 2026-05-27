@@ -98,6 +98,18 @@ F-210 `exportEquiposFiltradosXLSX`, F-211 `exportXLSX` (full), F-212 `exportJSON
 
 F-220 `openHistorial` / `closeHistorial`, F-221 `_histResetFilters_`, F-222 `renderHistorialView`, F-223 `_histRowFullHTML_`.
 
+### Estado "Oficial" en eventos y pendientes vinculados (F-250…F-256) — iteración 1.1
+
+| ID | Implementación | Estado | Verificación manual |
+|---|---|---|---|
+| F-250 | `forms/evento.js` — nuevos eventos MP nacen con `oficial: false`. Badge "No oficial" visible en form y en tarjeta del detalle de equipo. | ✅ | Crear evento MP → badge ámbar. |
+| F-251 | `data/excel.js:reconcileOficial()` — al cargar un nuevo maestro, promueve a oficial los eventos cuyo `resultado` coincide con `regRes[mes]` del archivo. | ✅ | Crear evento → cargar maestro con ese resultado → toast "N promovidos". |
+| F-252 | `main.js` — toast post-carga con cuenta de promovidos y de pendientes de reflejar. | ✅ | — |
+| F-253 | `apps_script/Code.gs` v3.12 — columna `Oficial` (Sí/No) en hoja Eventos. Header actualizado, `replaceAll_` emite el valor. Ejecutar `migrate()` para sumar columna sin perder datos. | ✅ | Push GAS → revisar hoja Eventos, última columna. |
+| F-254 | `views/verificacion.js` — KPIs "Eventos MP oficiales / no oficiales / discrepancias" como segunda fila. | ✅ | — |
+| F-255 | `views/historial.js` — columnas "ID correlativo", "Fecha registro", "Oficial" + filtro "Solo no oficiales". | ✅ | — |
+| F-256 | `forms/evento.js` botón "Crear pendiente" + `forms/equipo-detail.js` botón "Pendiente" por evento → precarga descripción/ejecutor/`eventoId`. `forms/pendiente.js` muestra badge "Desde evento <id>". | ✅ | Editar evento → "Crear pendiente" → form precargado. |
+
 ### Grabador de sesión (F-230…F-240)
 
 F-230…F-240 funciones `rec*` para telemetría. **Decisión documentada (SUP-001)**: omitir en iteración 1 por bajo valor de producto y alto costo (genera JSON de 10+ MB en sesiones largas).
@@ -231,7 +243,7 @@ Tokens, primitivos y principios → `DESIGN_SYSTEM.md`.
 | F-115 `syncCardHTML` | `views/verificacion.js:issueRow()` | ✅ | — |
 | F-116 `renderVerificacion` | `views/verificacion.js:renderVerificacion()` | ✅ | — |
 | F-117 Conteos verif | KPIs + duplicados + parciales + headers | ✅ | Cargar Excel real → KPIs y tablas. |
-| F-118 `exportEquiposFiltradosXLSX` | Pendiente (botón visible en próxima iteración) | ❌ | F-118 iteración 2. |
+| F-118 `exportEquiposFiltradosXLSX` | Cubierto por export global con hoja `Equipos` (lista del archivo cargado) | 🟡 | Export filtrado específico desde Verificación queda para iteración 2. |
 | F-119 Alertas equipos alto riesgo | Calculado pero no visualizado como sección dedicada en Hoy | 🟡 | F-119b iteración 2. |
 | F-120 `openEquipoModal` | `forms/equipo-detail.js:openEquipoDetail()` | ✅ | Click en fila de Equipos → modal. |
 | F-121 `renderEquipoModal` | `forms/equipo-detail.js` tabs Eventos/Pendientes/Info | ✅ | — |
@@ -290,10 +302,10 @@ Tokens, primitivos y principios → `DESIGN_SYSTEM.md`.
 | F-202 `_base64ToBytes_` | `utils.js:base64ToBytes()` | ✅ | — |
 | F-203 `masterFreshnessLabel` | Pendiente (se muestra fecha en settings pero no en header) | 🟡 | F-203b iteración 2. |
 | F-204–F-209 Mappers GAS | El backend ya transforma; no se reimplementa en cliente. La forma viaja con la respuesta. | ✅ | El pull lee el JSON tal cual. |
-| F-210 `exportEquiposFiltradosXLSX` | Pendiente | ❌ | iteración 2. |
-| F-211 `exportXLSX` (full) | Pendiente | ❌ | iteración 2. |
+| F-210 `exportEquiposFiltradosXLSX` | Cubierto por hoja `Equipos` en `exportXLSX` global; export filtrado dedicado en iteración 2 | 🟡 | — |
+| F-211 `exportXLSX` (full) | `src/js/export.js:exportXLSX()` — hojas `Eventos`, `Pendientes`, `Equipos` con IDs correlativos y columna "Fecha registro" y "Oficial" idénticos a GAS | ✅ | Menú ⋯ → "Exportar Excel". |
 | F-212 `exportJSON` | `main.js:exportJSON()` (menú ⋯) | ✅ | — |
-| F-213 `_histExportXLSX_` | `views/historial.js:exportXLSX()` | ✅ | Botón "Exportar" en historial. |
+| F-213 `_histExportXLSX_` | `src/js/export.js:exportHistorialXLSX()` con IDs correlativos y columnas extra | ✅ | Botón "Exportar" en historial. |
 | F-220 `openHistorial` | `router.js` navega a `#historial?key=...` | ✅ | Llamable desde detalle del equipo (próxima iteración añade botón). |
 | F-221 `_histResetFilters_` | Botón "Limpiar" en filter-bar | ✅ | — |
 | F-222 `renderHistorialView` | `views/historial.js:renderHistorial()` | ✅ | — |

@@ -74,6 +74,13 @@
  * la metadata (id, nombre, url, size, mime, uploadedAt) se guarda como JSON en
  * la columna "archivos" de Eventos y Pendientes. La hoja "Archivos" se deprecó
  * en v2.11 (no se borra automáticamente; si existe sólo se lee como fallback).
+ *
+ * v3.12 — agrega columna "Oficial" en Eventos:
+ *   - "Sí" si el evento ya se refleja en el archivo maestro de programación.
+ *   - "No" si fue creado en la app pero el maestro aún no lo registra; al
+ *     cargar un nuevo maestro que lo refleje, el cliente lo promueve a oficial.
+ *   - Sólo aplica a MP; otros tipos siempre se exportan como "Sí".
+ *   Ejecutar `migrate()` para sumar la columna a una hoja Eventos existente.
  */
 
 const SS_ID = ''; // Vacío = usa la hoja donde está pegado el script
@@ -90,7 +97,7 @@ const SHEET_SYNC         = 'SyncMarked';
 const SHEET_META         = 'Meta';
 
 const HEADERS = {
-  [SHEET_EVENTOS]:        ['ID Evento','N° Inventario','Equipo','Servicio','Familia','Tipo de evento','Fecha','Fecha registro','Resultado','Ejecutor','Estado del equipo','Empresa','Técnico (visita)','N° Envío','N° Cotización','N° OC','Folio','Folio guía','Observación','Adjuntos (URL)','Actualizado'],
+  [SHEET_EVENTOS]:        ['ID Evento','N° Inventario','Equipo','Servicio','Familia','Tipo de evento','Fecha','Fecha registro','Resultado','Ejecutor','Estado del equipo','Empresa','Técnico (visita)','N° Envío','N° Cotización','N° OC','Folio','Folio guía','Observación','Adjuntos (URL)','Actualizado','Oficial'],
   [SHEET_PENDIENTES]:     ['ID Pendiente','N° Inventario','Equipo','Servicio','Descripción','Fecha creación','Fecha compromiso','Próximo recordatorio','Fecha cierre','Ejecutor','Estado','Tareas','Seguimientos','Adjuntos (URL)','Actualizado'],
   [SHEET_AGENDA_SERV]:    ['servicio','cargo','nombre','email','anexo','celular'],
   [SHEET_AGENDA_OTROS]:   ['servicio','id','rol','nombre','email','anexo','celular'],
@@ -183,7 +190,7 @@ function _doSetup_(ss) {
     sh.setFrozenRows(1);
   });
   setMeta_('setupAt', new Date().toISOString());
-  setMeta_('version', '3.11');
+  setMeta_('version', '3.12');
 }
 
 /**
@@ -577,7 +584,9 @@ function replaceAll_(payload) {
         ev.folio||'', ev.folioGuia||'',
         ev.observacion || ev.comentario || '',
         '',                                          /* Adjuntos URL — RichTextValue después */
-        now
+        now,
+        /* Oficial: sólo aplica a MP. Eventos pre-feature (sin campo) se consideran oficiales. */
+        (ev.tipo === 'mp' && ev.oficial === false) ? 'No' : 'Sí'
       ]);
       if (adjuntos.length){
         formulas.push({ rowIdx: rows.length - 1, archivos: adjuntos });

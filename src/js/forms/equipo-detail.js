@@ -6,6 +6,7 @@ import { openModal } from '../ui.js';
 import { getEquipoEstadoExtended } from '../data/excel.js';
 import { openEventoForm } from './evento.js';
 import { openPendienteForm } from './pendiente.js';
+import { navigate } from '../router.js';
 
 const TIPO_LABEL = {
   mp:'Mantención preventiva', reporte_servicio:'Reporte de servicio',
@@ -65,8 +66,21 @@ export function openEquipoDetail(key) {
   const bindActions = (key) => {
     modal.modalEl.querySelector('#btn-new-ev')?.addEventListener('click', () => openEventoForm(key, null, renderBody));
     modal.modalEl.querySelector('#btn-new-pe')?.addEventListener('click', () => openPendienteForm(key, null, renderBody));
+    modal.modalEl.querySelector('#btn-historial')?.addEventListener('click', () => { modal.close(); navigate('historial', { key }); });
     modal.modalEl.querySelectorAll('[data-edit-ev]').forEach(el => el.addEventListener('click', () => openEventoForm(key, el.dataset.editEv, renderBody)));
     modal.modalEl.querySelectorAll('[data-edit-pe]').forEach(el => el.addEventListener('click', () => openPendienteForm(key, el.dataset.editPe, renderBody)));
+    modal.modalEl.querySelectorAll('[data-pend-from-ev]').forEach(el => el.addEventListener('click', () => {
+      const eid = el.dataset.pendFromEv;
+      const ev = (state.eventos[key] || []).find(x => x.id === eid);
+      if (!ev) return;
+      const tipoLbl = ({mp:'MP',reporte_servicio:'Reporte',visita_tecnica:'Visita',cotizacion:'Cotización',oc:'OC',envio:'Envío',solicitud:'Solicitud',recepcion:'Recepción',reparacion:'Reparación'}[ev.tipo]) || ev.tipo;
+      const preset = {
+        descripcion: ev.observacion && ev.observacion.length <= 120 ? ev.observacion : `Seguimiento de ${tipoLbl}${ev.fecha ? ' del '+ev.fecha : ''}`,
+        ejecutor: ev.ejecutor || '',
+        eventoId: ev.id
+      };
+      openPendienteForm(key, null, renderBody, preset);
+    }));
   };
 
   modal = openModal({
@@ -89,21 +103,41 @@ function eventosPanel(key, eventos) {
   return `
     <div class="row-between mb-3">
       <span class="muted text-sm">${eventos.length} eventos</span>
-      <button class="btn btn-primary btn-sm" id="btn-new-ev"><i data-lucide="plus"></i> Nuevo evento</button>
+      <div class="row">
+        <button class="btn btn-sm" id="btn-historial"><i data-lucide="history"></i> Ver historial</button>
+        <button class="btn btn-primary btn-sm" id="btn-new-ev"><i data-lucide="plus"></i> Nuevo evento</button>
+      </div>
     </div>
     <div class="col">
-      ${eventos.map(ev => `
+      ${eventos.map(ev => {
+        const isMp = ev.tipo === 'mp';
+        const isOficial = ev.oficial !== false;
+        const oficialBadge = isMp
+          ? (isOficial
+              ? `<span class="badge badge-ok" title="Reflejado en el archivo maestro"><i data-lucide="badge-check" style="width:12px;height:12px"></i> Oficial</span>`
+              : `<span class="badge badge-warn" title="Aún no aparece en el archivo maestro"><i data-lucide="clock" style="width:12px;height:12px"></i> No oficial</span>`)
+          : '';
+        const creado = ev.creadoEn ? new Date(ev.creadoEn).toLocaleString('es-CL') : '';
+        return `
         <div class="card" style="padding:12px">
-          <div class="row-between">
+          <div class="row-between" style="flex-wrap:wrap;gap:8px">
             <div>
-              <div class="semibold">${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</div>
-              <div class="text-xs muted">${fmtDate(ev.fecha)} ${ev.ejecutor ? '· ' + escapeHtml(ev.ejecutor) : ''} ${ev.resultado ? '· ' + escapeHtml(ev.resultado) : ''}</div>
+              <div class="row" style="gap:6px;flex-wrap:wrap">
+                <span class="semibold">${escapeHtml(TIPO_LABEL[ev.tipo] || ev.tipo || '—')}</span>
+                ${oficialBadge}
+                ${ev.resultado ? `<span class="badge badge-mono">${escapeHtml(ev.resultado)}</span>` : ''}
+              </div>
+              <div class="text-xs muted mt-1">${fmtDate(ev.fecha)} ${ev.ejecutor ? '· ' + escapeHtml(ev.ejecutor) : ''} ${creado ? '· registrado ' + escapeHtml(creado) : ''}</div>
             </div>
-            <button class="btn btn-sm" data-edit-ev="${escapeHtml(ev.id)}"><i data-lucide="pencil"></i></button>
+            <div class="row">
+              <button class="btn btn-sm" data-pend-from-ev="${escapeHtml(ev.id)}" title="Crear pendiente desde este evento"><i data-lucide="check-square"></i> Pendiente</button>
+              <button class="btn btn-sm" data-edit-ev="${escapeHtml(ev.id)}" title="Editar"><i data-lucide="pencil"></i></button>
+            </div>
           </div>
           ${ev.observacion ? `<div class="mt-2 text-sm">${escapeHtml(ev.observacion).replace(/\n/g, '<br>')}</div>` : ''}
         </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
   `;
 }

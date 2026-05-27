@@ -4,6 +4,7 @@ import { state, upsertEvento, findEvento, allEventoIds } from '../state.js';
 import { escapeHtml, todayISO, timestampUid, renderIcons, val } from '../utils.js';
 import { openModal, toast, confirmDialog } from '../ui.js';
 import { schedulePush } from '../data/gas.js';
+import { openPendienteForm } from './pendiente.js';
 
 const TIPOS = [
   ['mp', 'Mantención preventiva (MP)'],
@@ -19,10 +20,12 @@ const TIPOS = [
 
 const RESULTADOS = ['Si', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'FS', 'Baja', 'NU'];
 const ESTADOS = ['operativo', 'no operativo', 'fuera_servicio'];
+const TIPO_LABEL = Object.fromEntries(TIPOS);
 
 export function openEventoForm(key, editId, onSaved) {
   const eq = state.equipos.find(e => e.key === key);
   const existing = editId ? findEvento(key, editId) : null;
+  /* Nuevos eventos MP arrancan como "no oficial". Otros tipos: oficial por defecto. */
   const ev = existing || {
     id: timestampUid(allEventoIds()),
     tipo: 'mp',
@@ -34,11 +37,16 @@ export function openEventoForm(key, editId, onSaved) {
     empresa: '', empresaId: '', contactoId: '',
     nEnvio: '', nCotizacion: '', nOC: '', folio: '', folioGuia: '',
     observacion: '',
-    archivos: []
+    archivos: [],
+    oficial: false   // por defecto al crear MP. Para otros tipos, save() lo fuerza a true.
   };
 
+  const isOficial = (ev.oficial !== false);
+
   const footer = `
-    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button><span class="grow"></span>' : ''}
+    ${editId ? '<button class="btn btn-danger" id="btn-del" type="button"><i data-lucide="trash-2"></i> Eliminar</button>' : ''}
+    <button class="btn" id="btn-pend" type="button" title="Crear pendiente vinculado a este evento"><i data-lucide="check-square"></i> Crear pendiente</button>
+    <span class="grow"></span>
     <button class="btn cancel" type="button">Cancelar</button>
     <button class="btn btn-primary" id="btn-save" type="submit">Guardar</button>
   `;
@@ -46,7 +54,7 @@ export function openEventoForm(key, editId, onSaved) {
   const modal = openModal({
     title: editId ? 'Editar evento' : 'Nuevo evento',
     size: 'lg',
-    body: bodyHTML(ev, eq),
+    body: bodyHTML(ev, eq, isOficial, editId),
     footer
   });
   renderIcons();
@@ -56,16 +64,38 @@ export function openEventoForm(key, editId, onSaved) {
   modal.footer.querySelector('#btn-save').addEventListener('click', () => {
     collect(modal.modalEl, ev);
     if (!validate(ev)) return;
+    /* Tipos != mp no participan del flujo "oficial" */
+    if (ev.tipo !== 'mp') ev.oficial = true;
+    /* Si no era oficial y el usuario cambió manualmente al checkbox, respetar */
     upsertEvento(key, ev);
     schedulePush();
     toast({ message: editId ? 'Evento actualizado.' : 'Evento registrado.', kind: 'ok' });
     modal.close();
     onSaved?.();
   });
+  modal.footer.querySelector('#btn-pend').addEventListener('click', () => {
+    /* Si el evento es nuevo y todavía no se guardó, guardarlo primero */
+    collect(modal.modalEl, ev);
+    if (!editId) {
+      if (ev.tipo !== 'mp') ev.oficial = true;
+      upsertEvento(key, ev);
+      schedulePush();
+    } else {
+      if (ev.tipo !== 'mp') ev.oficial = true;
+      upsertEvento(key, ev);
+    }
+    modal.close();
+    const preset = {
+      descripcion: presetDescripcionFromEvento(ev),
+      ejecutor: ev.ejecutor || '',
+      eventoId: ev.id,
+      fecha: todayISO()
+    };
+    openPendienteForm(key, null, () => { onSaved?.(); }, preset);
+  });
   modal.footer.querySelector('#btn-del')?.addEventListener('click', async () => {
     const ok = await confirmDialog({ title: 'Eliminar evento', message: '¿Eliminar este evento?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    /* Eliminación con deshacer */
     const arr = state.eventos[key] || [];
     const idx = arr.findIndex(x => x.id === ev.id);
     if (idx < 0) return;
@@ -86,8 +116,25 @@ export function openEventoForm(key, editId, onSaved) {
   });
 }
 
-function bodyHTML(ev, eq) {
+function presetDescripcionFromEvento(ev) {
+  const tipoLbl = TIPO_LABEL[ev.tipo] || ev.tipo || 'evento';
+  const fecha = ev.fecha ? ` del ${ev.fecha}` : '';
+  if (ev.observacion && ev.observacion.length <= 120) return ev.observacion;
+  return `Seguimiento de ${tipoLbl}${fecha}`;
+}
+
+function bodyHTML(ev, eq, isOficial, editId) {
+  const oficialBadge = (ev.tipo === 'mp')
+    ? (isOficial
+        ? `<span class="badge badge-ok" title="Reflejado en el archivo maestro"><i data-lucide="badge-check" style="width:12px;height:12px"></i> Oficial</span>`
+        : `<span class="badge badge-warn" title="Aún no aparece en el archivo maestro; se promoverá al cargar un maestro que lo refleje"><i data-lucide="clock" style="width:12px;height:12px"></i> No oficial</span>`)
+    : '';
   return `
+    ${eq ? `<div class="row mb-3" style="gap:8px;flex-wrap:wrap">
+      <span class="muted text-sm">Equipo: <strong>${escapeHtml(eq.equipo || '—')}</strong> · ${escapeHtml(eq.inv || eq.id || '')}</span>
+      ${oficialBadge}
+    </div>` : ''}
+
     <div class="grid grid-2">
       <div class="field">
         <label class="field-label" for="ev-tipo">Tipo de evento</label>
@@ -138,12 +185,17 @@ function bodyHTML(ev, eq) {
     <div class="field mt-3">
       <label class="field-label" for="ev-obs">Observación</label>
       <textarea class="textarea" id="ev-obs" rows="5" placeholder="Describí qué se hizo, qué se encontró, qué pendientes quedan…">${escapeHtml(ev.observacion)}</textarea>
-      <span class="field-hint">Las líneas que empiecen con <code>PENDIENTES:</code> se sugerirán como tareas a crear.</span>
+      <span class="field-hint">Si quedan tareas pendientes, usá el botón <strong>Crear pendiente</strong>.</span>
+    </div>
+
+    <div class="mt-3 text-xs muted">
+      ${ev.creadoEn ? `Registrado: ${new Date(ev.creadoEn).toLocaleString('es-CL')}` : ''}
+      ${editId ? ` · ID interno: <code>${escapeHtml(ev.id)}</code>` : ''}
     </div>
   `;
 }
 
-function bindFields(modalEl, ev) { /* solo handlers de UI */ }
+function bindFields(modalEl, ev) { /* sin handlers extra por ahora */ }
 
 function collect(modalEl, ev) {
   ev.tipo = modalEl.querySelector('#ev-tipo').value;
